@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anime Jeopardy - Family Game Night</title>
+  <meta name="description" content="Anime Jeopardy Game for Raspberry Pi, Portainer, and Family Game Nights">
+  <link rel="stylesheet" href="style.css">
+  <!-- Favicon emoji -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎌</text></svg>">
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="jeopardy-header">
+    <div class="brand-zone">
+      <span style="font-size: 24px;">🎌</span>
+      <span class="brand-title">ANIME JEOPARDY</span>
+      <span class="badge-tag">Raspberry Pi</span>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn-header" id="btn-host-sheet" style="background: rgba(16, 185, 129, 0.2); border-color: #10b981; color: #6ee7b7;" title="Open Host Answer Key (Private for Host)">👑 Host Sheet</button>
+      <button class="btn-header" id="btn-test-audio" title="Test audio & unlock speakers">🔔 Test Sound</button>
+      <button class="btn-header" id="btn-audio-toggle" title="Toggle Sound">🔊 Sound: ON</button>
+      <button class="btn-header" id="btn-fullscreen" title="Full Screen TV Mode">⛶ Fullscreen</button>
+      <button class="btn-header" id="btn-reset-game" title="Reset Current Game">🔄 New Game</button>
+    </div>
+  </header>
+
+  <!-- Main Game Container -->
+  <main class="main-wrapper" id="app-root">
+    <!-- Dynamic screens injected by game.js: Setup, Board, Clue Modal, Final Jeopardy, Podium -->
+  </main>
+
+  <!-- Load Game Data then Core Engine -->
+  <script src="game-data.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

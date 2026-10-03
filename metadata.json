@@ -1,0 +1,6 @@
+{
+  "name": "Anime Jeopardy for Raspberry Pi",
+  "description": "A family game night Anime Jeopardy game with Docker containerization, Portainer support, and local image serving for Raspberry Pi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
