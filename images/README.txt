@@ -2,7 +2,8 @@
 ANIME JEOPARDY - CUSTOM IMAGES FOLDER
 ================================================================================
 
-This directory is mounted directly into the Docker container at `/usr/share/nginx/html/images/`.
+This directory can be used to store local picture files (.jpg, .png, .webp, .svg)
+for use with Anime Jeopardy clues.
 
 HOW TO ADD YOUR OWN CLUE PICTURES:
 ----------------------------------
@@ -15,11 +16,9 @@ HOW TO ADD YOUR OWN CLUE PICTURES:
      - pikachu.png
      - deathnote.jpg
 
-2. In your `game-data.js` (or in the in-game editor), set the clue's `image` field to:
+2. In the Clue Editor (or in your questions data), set the clue's `image` field to:
      image: "/images/luffy.jpg"
-
-3. Refresh your browser window at `http://<raspberry-pi-ip>:8080`.
-   Nginx will immediately serve the image directly from this folder!
+   or use any direct web image URL.
 
 DEFAULT FALLBACKS:
 ------------------

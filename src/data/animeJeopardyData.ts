@@ -34,7 +34,7 @@ export interface JeopardyGameData {
 
 export const INITIAL_ANIME_DATA: JeopardyGameData = {
   title: "Anime Jeopardy",
-  subtitle: "Family Game Night · Raspberry Pi & Portainer Edition",
+  subtitle: "Family Game Night Edition",
   categories: [
     {
       id: "pirates-ninjas",

@@ -219,6 +219,8 @@
     usedClues: new Set(),
     activeClue: null,
     isAnswerShown: false,
+    role: "host",
+    channel: null,
     
     // Live Clue Timer
     clueTimeLeft: 15,
@@ -230,6 +232,40 @@
     finalStage: "WAGER",
 
     init() {
+      // Detect role from URL query param (?role=tv or ?role=host)
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlRole = urlParams.get("role");
+      if (urlRole === "tv" || urlRole === "host") {
+        this.role = urlRole;
+      } else {
+        this.role = localStorage.getItem("pi_jeopardy_role") || "host";
+      }
+
+      // Initialize cross-screen BroadcastChannel
+      try {
+        if ("BroadcastChannel" in window) {
+          this.channel = new BroadcastChannel("anime_jeopardy_pi_sync");
+          this.channel.onmessage = (e) => {
+            const action = e.data;
+            if (!action) return;
+            if (action.type === "OPEN_CLUE") {
+              this.activeClue = action.clue;
+              this.renderClueModal();
+            } else if (action.type === "REVEAL_ANSWER") {
+              const ansBox = document.getElementById("answer-container");
+              if (ansBox) {
+                ansBox.style.display = "block";
+                this.sounds.playCorrect();
+              }
+            } else if (action.type === "CLOSE_CLUE") {
+              const existing = document.getElementById("clue-modal-root");
+              if (existing) existing.remove();
+              this.activeClue = null;
+            }
+          };
+        }
+      } catch {}
+
       this.setupEventListeners();
       this.renderSetup();
 
@@ -267,6 +303,23 @@
       const hostSheetBtn = document.getElementById("btn-host-sheet");
       if (hostSheetBtn) {
         hostSheetBtn.addEventListener("click", () => this.renderHostSheetModal());
+      }
+
+      // Screen Role Toggle button (TV Display vs Host Controller)
+      const roleBtn = document.getElementById("btn-screen-role");
+      if (roleBtn) {
+        const updateRoleBtn = () => {
+          roleBtn.textContent = this.role === "tv" ? "📺 TV Mode" : "👑 Host Mode";
+          roleBtn.style.background = this.role === "tv" ? "rgba(56, 189, 248, 0.2)" : "rgba(255, 204, 0, 0.2)";
+          roleBtn.style.borderColor = this.role === "tv" ? "#38bdf8" : "#ffcc00";
+          roleBtn.style.color = this.role === "tv" ? "#38bdf8" : "#ffcc00";
+        };
+        updateRoleBtn();
+        roleBtn.addEventListener("click", () => {
+          this.role = this.role === "host" ? "tv" : "host";
+          localStorage.setItem("pi_jeopardy_role", this.role);
+          updateRoleBtn();
+        });
       }
 
       // Reset game
@@ -586,6 +639,7 @@
               </span>
               <button id="btn-timer-toggle" class="btn-header primary" style="padding: 4px 8px; font-size: 11px;">▶ Start</button>
               <button id="btn-think-music" class="btn-header" style="padding: 4px 8px; font-size: 11px;" title="Play Jeopardy Theme">🎵 Theme</button>
+              <button id="btn-read-aloud" class="btn-header" style="padding: 4px 8px; font-size: 11px;" title="Read Clue Aloud">🗣️ Read</button>
               <button id="btn-timer-add5" class="btn-header" style="padding: 4px 6px; font-size: 11px;">+5s</button>
               <button id="btn-timer-reset" class="btn-header" style="padding: 4px 6px; font-size: 11px;">🔄</button>
             </div>
@@ -594,8 +648,22 @@
           </div>
 
           <!-- Progress bar -->
-          <div style="width: 100%; height: 6px; background: #02052c; border-radius: 3px; overflow: hidden; margin-bottom: 14px; border: 1px solid rgba(255,255,255,0.1);">
+          <div style="width: 100%; height: 6px; background: #02052c; border-radius: 3px; overflow: hidden; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.1);">
             <div id="clue-timer-bar" style="width: 100%; height: 100%; background: #22c55e; transition: width 1s linear;"></div>
+          </div>
+
+          <!-- Buzzer Lockout Prompt & Buttons -->
+          <div id="buzzer-container" style="display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
+            <span style="font-size: 11px; font-weight: 700; color: #ffcc00; text-transform: uppercase;">⚡ Buzzers Active:</span>
+            ${this.teams.map((t, idx) => `
+              <button class="btn-team-buzz" data-team="${t.id}" style="padding: 3px 10px; border-radius: 12px; background: rgba(255,204,0,0.1); border: 1px solid rgba(255,204,0,0.4); color: #ffcc00; font-size: 11px; font-weight: 700; cursor: pointer;">
+                ${t.name} [${idx + 1}]
+              </button>
+            `).join("")}
+          </div>
+
+          <div id="buzzer-lockout-banner" style="display: none; background: linear-gradient(90deg, #dc2626, #f59e0b, #dc2626); color: #000; font-family: var(--font-display); font-size: 18px; font-weight: 900; padding: 8px 16px; border-radius: 8px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">
+            🚨 <span id="buzzer-team-name"></span> BUZZED IN!
           </div>
 
           <div class="modal-content-area">
@@ -617,6 +685,7 @@
             </div>
           </div>
 
+          ${this.role === "host" ? `
           <div class="host-controls-panel">
             <div class="host-section-title">Host Controls (Host Eyes Only)</div>
 
@@ -651,6 +720,12 @@
               `).join("")}
             </div>
           </div>
+          ` : `
+          <!-- TV Display Screen Footer (Answers strictly hidden) -->
+          <div style="background: rgba(3, 8, 82, 0.8); border: 1px solid rgba(56, 189, 248, 0.5); border-radius: 8px; padding: 10px; text-align: center; color: #38bdf8; font-size: 13px; font-weight: 700; margin-top: 10px;">
+            📺 TV Screen Display · Answers are strictly hidden until Host reveals them
+          </div>
+          `}
         </div>
       `;
 
@@ -749,6 +824,62 @@
         updateTimerUI();
       });
 
+      // Read Aloud Speech Synthesis
+      const readBtn = document.getElementById("btn-read-aloud");
+      if (readBtn) {
+        let isSpeaking = false;
+        readBtn.addEventListener("click", () => {
+          if (isSpeaking) {
+            window.speechSynthesis.cancel();
+            isSpeaking = false;
+            readBtn.style.background = "";
+          } else if (window.speechSynthesis) {
+            isSpeaking = true;
+            readBtn.style.background = "#0284c7";
+            const u = new SpeechSynthesisUtterance(clue.clue);
+            u.onend = () => {
+              isSpeaking = false;
+              readBtn.style.background = "";
+            };
+            window.speechSynthesis.speak(u);
+          }
+        });
+      }
+
+      // Buzzer Lockout
+      const banner = document.getElementById("buzzer-lockout-banner");
+      const buzzedName = document.getElementById("buzzer-team-name");
+      let activeBuzzerTeam = null;
+
+      const triggerBuzz = (teamId) => {
+        if (activeBuzzerTeam !== null) return;
+        activeBuzzerTeam = teamId;
+        pauseTimer();
+        this.sounds.init();
+        this.sounds.playClueReveal(); // sharp ring
+        const t = this.teams.find(x => x.id === teamId);
+        if (banner && buzzedName && t) {
+          buzzedName.textContent = t.name;
+          banner.style.display = "block";
+        }
+      };
+
+      modal.querySelectorAll(".btn-team-buzz").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const tid = parseInt(btn.dataset.team, 10);
+          triggerBuzz(tid);
+        });
+      });
+
+      // Number key buzzer listener
+      const keyBuzzerHandler = (e) => {
+        const num = parseInt(e.key, 10);
+        if (num >= 1 && num <= this.teams.length) {
+          triggerBuzz(this.teams[num - 1].id);
+        }
+      };
+      window.addEventListener("keydown", keyBuzzerHandler);
+
       // Toggle Private Host Answer Key
       const togglePrivBtn = document.getElementById("btn-toggle-private-ans");
       const privAnsDiv = document.getElementById("host-private-answer");
@@ -762,16 +893,24 @@
       }
 
       // Show answer button
-      document.getElementById("btn-show-answer").addEventListener("click", () => {
-        pauseTimer();
-        this.revealAnswer();
-      });
+      const showAnsBtn = document.getElementById("btn-show-answer");
+      if (showAnsBtn) {
+        showAnsBtn.addEventListener("click", () => {
+          pauseTimer();
+          this.revealAnswer();
+          if (this.channel) this.channel.postMessage({ type: "REVEAL_ANSWER" });
+        });
+      }
 
       // Pass/Skip button
-      document.getElementById("btn-pass-clue").addEventListener("click", () => {
-        pauseTimer();
-        this.closeClue();
-      });
+      const passBtn = document.getElementById("btn-pass-clue");
+      if (passBtn) {
+        passBtn.addEventListener("click", () => {
+          pauseTimer();
+          this.closeClue();
+          if (this.channel) this.channel.postMessage({ type: "CLOSE_CLUE" });
+        });
+      }
 
       // Score buttons
       modal.querySelectorAll(".btn-award-correct").forEach(btn => {

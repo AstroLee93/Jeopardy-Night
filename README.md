@@ -1,160 +1,85 @@
-# Anime Jeopardy for Raspberry Pi (Docker & Portainer)
+# Anime Jeopardy - Family Game Night
 
-A lightweight, family-friendly Anime Jeopardy game built specifically to run offline on a **Raspberry Pi** (ARM64 / ARMv7) or home server via **Portainer** and **Docker**.
-
-Includes classic Jeopardy gameplay with 6 categories, 5 clues ($200–$1000), Daily Double, Final Jeopardy, team score tracking (2–6 teams), image clues, sound synthesizer effects, and large TV-friendly buttons for couch play.
+A full-featured, family-friendly Anime Jeopardy web game with interactive host controls, an AI-powered trivia generator, authentic Jeopardy sound effects, team buzzer scoring, and customizable anime clue decks.
 
 ---
 
-## ⚡ Quick Start: Deploy via Portainer
+## 🌟 Key Features
 
-Portainer makes deployment on a Raspberry Pi a breeze.
-
-### Method 1: Portainer Web Editor (Easiest)
-
-1. Open Portainer in your web browser: `http://<raspberry-pi-ip>:9000` (or `9443`).
-2. Go to **Stacks** in the left menu.
-3. Click **+ Add stack**.
-4. Name the stack: `anime-jeopardy`.
-5. Select the **Web editor** tab and paste the contents of `docker-compose.yml`:
-
-```yaml
-services:
-  anime-jeopardy:
-    image: nginx:alpine
-    container_name: anime_jeopardy
-    restart: unless-stopped
-    ports:
-      - "8080:80"
-    volumes:
-      # Map your local directory containing the game files to Nginx
-      - /home/pi/anime-jeopardy/standalone:/usr/share/nginx/html:ro
-      # Map your custom anime images folder
-      - /home/pi/anime-jeopardy/images:/usr/share/nginx/html/images:ro
-```
-
-6. Click **Deploy the stack**.
-7. Open `http://<raspberry-pi-ip>:8080` on any phone, tablet, computer, or Smart TV on your home Wi-Fi!
+- **Classic Jeopardy Board**: 6 customizable categories, 5 clue tiers ($200–$1,000), Daily Double wagers, and a Final Jeopardy round.
+- **Host Answer Sheet (Admin View)**: A dedicated host dashboard showing all clues, correct answers, and Daily Double locations in real-time, so the host always knows the answer without having to reveal it on the main board!
+- **AI Trivia Generator**: Built-in Gemini AI generator to create full custom Jeopardy boards on any anime theme (*Shonen Legends*, *Studio Ghibli*, *Modern Hits*, *Cyberpunk & Mecha*, *Isekai*, or custom topics).
+- **Audio Synthesizer**: 100% browser-synthesized Jeopardy Think Music, Daily Double fanfare, right/wrong chimes, and triple buzzers without external audio dependencies.
+- **Team Scoreboard**: Support for 2 to 6 teams with custom names, point tracking, and quick +/- score adjustments.
+- **Clue Editor**: In-app clue customizer allowing quick edits to any clue, answer, dollar value, or image.
+- **TV & Couch Play**: TV Fullscreen mode (`F` key) and keyboard hotkeys for seamless living room game nights.
 
 ---
 
-### Method 2: Command Line (SSH onto Raspberry Pi)
+## 🚀 Getting Started
 
+### Prerequisites
+- Node.js 18+ installed
+
+### Running Locally
 ```bash
-# 1. Clone or copy this repository to your Raspberry Pi
-git clone <your-repo-url> anime-jeopardy
-cd anime-jeopardy
+# 1. Install dependencies
+npm install
 
-# 2. Build and launch the container
-docker compose up -d
+# 2. Start the development server
+npm run dev
 
-# 3. Check container status
-docker ps
+# 3. Open in your browser
+http://localhost:3000
 ```
 
-The container runs using official `nginx:alpine` and consumes only **~15MB of RAM**, making it practically invisible to Raspberry Pi CPU and memory.
-
----
-
-## 🖼️ How to Add Custom Local Images
-
-The game supports showing pictures next to clues (character reveals, mystery silhouettes, scene recognition, weapons).
-
-1. Put your image files (`.jpg`, `.png`, `.webp`, `.svg`) inside the `images/` folder on your Raspberry Pi:
-   ```bash
-   /home/pi/anime-jeopardy/images/luffy.jpg
-   /home/pi/anime-jeopardy/images/goku.png
-   /home/pi/anime-jeopardy/images/totoro.webp
-   ```
-2. Open `standalone/game-data.js` and set the clue's `image` property:
-   ```javascript
-   {
-     value: 200,
-     clue: "This stretchy captain ate the Gum-Gum Fruit...",
-     answer: "Who is Monkey D. Luffy?",
-     image: "/images/luffy.jpg" // Local file path
-   }
-   ```
-3. Refresh `http://<raspberry-pi-ip>:8080` in your browser. Nginx immediately serves your image!
-
-*Note: If an image file isn't found or hasn't been added yet, the game automatically shows a clean anime fallback card without breaking the layout.*
-
----
-
-## ✏️ How to Edit or Add Your Own Questions
-
-### Option A: Use the Built-in AI Trivia Generator (Fastest!)
-Click the **"✨ AI Question Generator"** button in the top bar. You can choose a preset theme (e.g. *Shonen All-Stars*, *Studio Ghibli*, *Modern Mega-Hits*, *90s Classics*, or type any custom anime title) and Gemini will write 6 full categories with 30 clues and Final Jeopardy in authentic Jeopardy style.
-Click **"Download for Raspberry Pi"** to save `game-data.js`, and replace `standalone/game-data.js` on your Pi!
-
-### Option B: Manually Edit `standalone/game-data.js`
-All trivia categories, dollar values, clues, and answers are stored in plain JavaScript in `standalone/game-data.js`.
-
-Open `standalone/game-data.js` in any text editor:
-
-```javascript
-window.ANIME_JEOPARDY_DATA = {
-  title: "Anime Family Game Night Jeopardy",
-  categories: [
-    {
-      id: "my-custom-category",
-      title: "SHONEN HEROES",
-      clues: [
-        {
-          value: 200,
-          clue: "This Ninja from the Hidden Leaf dreams of becoming Hokage.",
-          answer: "Who is Naruto Uzumaki?",
-          image: "/images/naruto.jpg"
-        },
-        // ... up to $1000
-      ]
-    },
-    // ... 6 categories total
-  ],
-  finalJeopardy: {
-    category: "CREATORS",
-    clue: "Creator of Dragon Ball who revolutionized the shonen genre.",
-    answer: "Who is Akira Toriyama?"
-  }
-};
+### Production Build
+```bash
+npm run build
+npm start
 ```
 
 ---
 
-## 📺 Playing on TV / Family Game Night
+## 🛡️ Host Answer Sheet (Private Host Admin)
 
-- **Full Screen Mode**: Press the **Fullscreen** button or tap `F` on a connected keyboard to hide the browser URL bar on your TV or projector.
-- **Host Hotkeys**:
-  - `Spacebar`: Reveal Answer / Advance
-  - `Escape`: Close clue modal
-  - Click `+` or `-` under each team to quickly adjust scores if a team misspoke or disputed an answer.
-- **Buzzer / Audio**: Synthesized Web Audio API sound effects run 100% in browser (no external mp3 files needed).
-- **Daily Double**: Allows the chosen team to wager between $5 and their current score (or up to $1000 if their score is low).
+During family game night, the host can view all answers without revealing them to the players:
 
----
-
-## 📂 Project Structure
-
-```text
-anime-jeopardy/
-├── docker-compose.yml       # Ready-to-use Docker compose stack for Portainer
-├── Dockerfile               # Multi-arch Nginx Alpine image builder
-├── nginx.conf               # Nginx server configuration with caching & gzip
-├── README.md                # This setup & customization manual
-├── images/                  # Mount folder for custom pictures (.jpg, .png)
-│   └── README.txt
-└── standalone/              # Zero-dependency vanilla web app
-    ├── index.html           # Main HTML structure
-    ├── style.css            # TV-optimized Jeopardy stylesheet
-    ├── game-data.js         # 30 Anime clues + Final Jeopardy + local image paths
-    └── game.js              # State machine, scoring, audio synth, TV controls
-```
+1. Click the green **"Host Answer Sheet"** button in the top navigation bar (or press `H` on your keyboard).
+2. The modal displays:
+   - All categories and dollar values.
+   - The hidden Daily Double locations (highlighted with a 🌟 badge).
+   - The full clue prompt and the exact correct answer.
+   - Quick search and category filter to easily find any clue as teams call them out.
+3. The host can keep this open on a phone, tablet, or secondary window while projecting the main board to the TV.
 
 ---
 
-## 🛠️ Hardware Requirements
+## 🤖 AI Question Generator
 
-- **Device**: Any Raspberry Pi 2, 3, 4, 5, or Zero 2 W running Raspberry Pi OS (32-bit or 64-bit)
-- **RAM**: ~15 MB
-- **Storage**: ~30 MB (including Nginx Alpine base image)
-- **Network**: Local LAN / Wi-Fi only (no internet connection required after Docker pull)
+Generate custom anime trivia decks in seconds:
+
+1. Click **"✨ AI Trivia Generator"** in the top bar.
+2. Select a quick preset (*Shonen All-Stars*, *Studio Ghibli Magic*, *Modern Anime Mega-Hits*, *90s & 2000s Nostalgia*, *Mecha & Sci-Fi*) or type any custom topic.
+3. Choose your desired difficulty (Family / Mixed, Casual Anime Fans, or Hardcore Otaku).
+4. Click **"Generate Complete Jeopardy Board"**.
+5. Review the generated categories and clues, then click **"Apply to Game Board"** to start playing immediately.
+
+---
+
+## ⌨️ Game Controls & Hotkeys
+
+- **Spacebar**: Reveal answer / advance
+- **H**: Open / close Host Answer Sheet
+- **F**: Toggle Fullscreen TV Mode
+- **Escape**: Close any open modal or clue
+- **+/- Buttons**: Adjust team scores manually
+
+---
+
+## 🖼️ Adding Custom Images
+
+To include custom pictures for clues:
+1. Place your image files in the `images/` directory or use any web image URL.
+2. In the **Edit Clues** panel, paste the relative path (e.g. `/images/luffy.jpg`) or external URL into the Clue Image field.
+3. If an image is not supplied, the game renders a clean, themed anime card fallback so the layout always looks great.

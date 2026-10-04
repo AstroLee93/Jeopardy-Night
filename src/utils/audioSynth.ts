@@ -1,15 +1,18 @@
 /**
  * Native Web Audio API Sound Synthesizer for Anime Jeopardy
  * Includes authentic Jeopardy Think Music, Daily Double laser fanfare,
- * correct chimes, and iconic triple buzzers. 100% offline & zero external audio files.
+ * correct chimes, buzzer lock-in, and Web Speech API clue reader.
+ * 100% offline & zero external audio files.
  */
 
 class SoundSynthesizer {
   private ctx: AudioContext | null = null;
   public enabled = true;
+  public volume = 0.8; // 0.0 to 1.0
   private thinkMusicInterval: NodeJS.Timeout | null = null;
   private thinkMusicOscillators: OscillatorNode[] = [];
   public isThinkMusicPlaying = false;
+  public isSpeaking = false;
 
   public initCtx(): AudioContext | null {
     if (!this.ctx) {
@@ -24,9 +27,9 @@ class SoundSynthesizer {
     return this.ctx;
   }
 
-  // Play a single synthesized tone
+  // Play a single synthesized tone with master volume scaling
   public playTone(freq: number, duration: number, type: OscillatorType = "sine", gainVal = 0.3) {
-    if (!this.enabled) return;
+    if (!this.enabled || this.volume <= 0) return;
     const ctx = this.initCtx();
     if (!ctx) return;
 
@@ -37,7 +40,8 @@ class SoundSynthesizer {
       osc.type = type;
       osc.frequency.setValueAtTime(freq, ctx.currentTime);
 
-      gain.gain.setValueAtTime(gainVal, ctx.currentTime);
+      const effectiveGain = gainVal * this.volume;
+      gain.gain.setValueAtTime(effectiveGain, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
 
       osc.connect(gain);
@@ -53,10 +57,6 @@ class SoundSynthesizer {
   // Classic Jeopardy Board Clue Ping
   public playCluePing() {
     if (!this.enabled) return;
-    const ctx = this.initCtx();
-    if (!ctx) return;
-
-    // Resonant bell chime (two frequencies: base and harmonic)
     this.playTone(784, 0.25, "triangle", 0.35); // G5
     setTimeout(() => {
       this.playTone(1568, 0.35, "sine", 0.25); // G6
@@ -72,14 +72,25 @@ class SoundSynthesizer {
     });
   }
 
+  // Team Buzzer In Sound (Electric game-show ring/lock-in)
+  public playBuzzer() {
+    if (!this.enabled) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+
+    // Dual-tone high impact bell ring
+    this.playTone(880, 0.18, "sawtooth", 0.3); // A5
+    this.playTone(1760, 0.25, "triangle", 0.4); // A6
+    setTimeout(() => {
+      this.playTone(1320, 0.3, "sine", 0.35); // E6
+    }, 40);
+  }
+
   // Classic Jeopardy Triple Buzz (Time's Up / Wrong Answer)
   public playTripleBuzz() {
     if (!this.enabled) return;
     this.stopThinkMusic();
-    const ctx = this.initCtx();
-    if (!ctx) return;
 
-    // 3 rapid harsh buzzes (110Hz sawtooth)
     const buzzTimes = [0, 140, 280];
     buzzTimes.forEach((delay, idx) => {
       setTimeout(() => {
@@ -98,10 +109,7 @@ class SoundSynthesizer {
   public playDailyDouble() {
     if (!this.enabled) return;
     this.stopThinkMusic();
-    const ctx = this.initCtx();
-    if (!ctx) return;
 
-    // Classic arpeggiated synth laser sound
     const notes = [
       { f: 293.66, d: 0.08 }, // D4
       { f: 369.99, d: 0.08 }, // F#4
@@ -120,10 +128,28 @@ class SoundSynthesizer {
     });
   }
 
+  // Victory / Final Podium Fanfare
+  public playFanfare() {
+    if (!this.enabled) return;
+    const fanfareNotes = [
+      { f: 523.25, d: 0.15 }, // C5
+      { f: 523.25, d: 0.15 },
+      { f: 523.25, d: 0.15 },
+      { f: 659.25, d: 0.45 }, // E5
+      { f: 587.33, d: 0.15 }, // D5
+      { f: 659.25, d: 0.15 },
+      { f: 783.99, d: 0.7 }   // G5
+    ];
+    let offset = 0;
+    fanfareNotes.forEach((n) => {
+      setTimeout(() => {
+        this.playTone(n.f, n.d, "triangle", 0.4);
+      }, offset);
+      offset += n.d * 1000 + 40;
+    });
+  }
+
   // Authentic Jeopardy "Think Music" (Merv Griffin Theme Song)
-  // Synthesizes the iconic melody:
-  // C4, F4, C4, F3, C4, F4, C4 - C4, F4, C4, A4, G4, F4, E4, D4, C#4
-  // C4, F4, C4, F3, C4, F4, C4 - F4, D4, C4, Bb3, A3, G3, F3
   public playThinkMusic() {
     if (!this.enabled) return;
     this.stopThinkMusic();
@@ -132,7 +158,6 @@ class SoundSynthesizer {
 
     this.isThinkMusicPlaying = true;
 
-    // Note frequencies in Hz
     const F3 = 174.61;
     const G3 = 196.00;
     const A3 = 220.00;
@@ -146,9 +171,7 @@ class SoundSynthesizer {
     const A4 = 440.00;
     const C5 = 523.25;
 
-    // Jeopardy theme sequence: [frequency, duration (sec), delay (sec)]
     const melody: Array<{ f: number; d: number; t: number }> = [
-      // Measure 1
       { f: C4, d: 0.3, t: 0.0 },
       { f: F4, d: 0.3, t: 0.4 },
       { f: C4, d: 0.3, t: 0.8 },
@@ -157,7 +180,6 @@ class SoundSynthesizer {
       { f: F4, d: 0.3, t: 2.0 },
       { f: C4, d: 0.6, t: 2.4 },
 
-      // Measure 2
       { f: C4, d: 0.3, t: 3.2 },
       { f: F4, d: 0.3, t: 3.6 },
       { f: C4, d: 0.3, t: 4.0 },
@@ -168,7 +190,6 @@ class SoundSynthesizer {
       { f: D4, d: 0.3, t: 6.0 },
       { f: Db4, d: 0.3, t: 6.4 },
 
-      // Measure 3
       { f: C4, d: 0.3, t: 6.8 },
       { f: F4, d: 0.3, t: 7.2 },
       { f: C4, d: 0.3, t: 7.6 },
@@ -177,7 +198,6 @@ class SoundSynthesizer {
       { f: F4, d: 0.3, t: 8.8 },
       { f: C4, d: 0.6, t: 9.2 },
 
-      // Measure 4
       { f: F4, d: 0.4, t: 10.0 },
       { f: D4, d: 0.4, t: 10.5 },
       { f: C4, d: 0.4, t: 11.0 },
@@ -186,7 +206,6 @@ class SoundSynthesizer {
       { f: G3, d: 0.4, t: 12.5 },
       { f: F3, d: 0.8, t: 13.0 },
 
-      // Final Big Hits
       { f: C5, d: 0.15, t: 14.0 },
       { f: C5, d: 0.15, t: 14.3 },
       { f: C5, d: 0.5,  t: 14.6 }
@@ -195,7 +214,6 @@ class SoundSynthesizer {
     melody.forEach((note) => {
       const timer = setTimeout(() => {
         if (!this.isThinkMusicPlaying) return;
-        // Warm retro synthesizer sound (triangle + slight sine)
         this.playTone(note.f, note.d, "triangle", 0.28);
         this.playTone(note.f * 2, note.d * 0.7, "sine", 0.12);
       }, note.t * 1000);
@@ -203,7 +221,6 @@ class SoundSynthesizer {
       this.thinkMusicOscillators.push(timer as unknown as OscillatorNode);
     });
 
-    // Auto-loop after 15.5 seconds if still running
     this.thinkMusicInterval = setTimeout(() => {
       if (this.isThinkMusicPlaying) {
         this.playThinkMusic();
@@ -211,7 +228,7 @@ class SoundSynthesizer {
     }, 15500);
   }
 
-  // Stop the think music immediately
+  // Stop think music immediately
   public stopThinkMusic() {
     this.isThinkMusicPlaying = false;
     if (this.thinkMusicInterval) {
@@ -226,6 +243,54 @@ class SoundSynthesizer {
   public playTimerTick() {
     if (!this.enabled) return;
     this.playTone(880, 0.04, "square", 0.1);
+  }
+
+  // Web Speech API: Host Reads Clue Aloud
+  public speak(text: string, onEnd?: () => void) {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      return;
+    }
+    this.stopSpeaking();
+
+    try {
+      const cleanText = text.replace(/_/g, " ").trim();
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.05;
+      utterance.volume = this.volume;
+
+      // Try selecting an English voice
+      const voices = window.speechSynthesis.getVoices();
+      const preferred = voices.find(v => v.lang.startsWith("en-") && (v.name.includes("Natural") || v.name.includes("Google") || v.name.includes("Samantha")));
+      if (preferred) {
+        utterance.voice = preferred;
+      }
+
+      utterance.onstart = () => {
+        this.isSpeaking = true;
+      };
+      utterance.onend = () => {
+        this.isSpeaking = false;
+        if (onEnd) onEnd();
+      };
+      utterance.onerror = () => {
+        this.isSpeaking = false;
+        if (onEnd) onEnd();
+      };
+
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      this.isSpeaking = false;
+    }
+  }
+
+  public stopSpeaking() {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
+    }
+    this.isSpeaking = false;
   }
 }
 

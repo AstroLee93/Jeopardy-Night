@@ -12,6 +12,50 @@ const PORT = 3000;
 
 app.use(express.json({ limit: '10mb' }));
 
+// =============================================================================
+// Real-time Multi-Device Screen Synchronization (TV Display <-> Host Controller)
+// =============================================================================
+const sseClients: express.Response[] = [];
+
+app.get('/api/sync/events', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.flushHeaders();
+
+  sseClients.push(res);
+
+  // Keep alive ping every 25 seconds
+  const pingInterval = setInterval(() => {
+    try {
+      res.write(': ping\n\n');
+    } catch {}
+  }, 25000);
+
+  req.on('close', () => {
+    clearInterval(pingInterval);
+    const idx = sseClients.indexOf(res);
+    if (idx !== -1) sseClients.splice(idx, 1);
+  });
+});
+
+app.post('/api/sync/action', (req, res) => {
+  const action = req.body;
+  if (!action || !action.type) {
+    return res.status(400).json({ error: 'Invalid action payload' });
+  }
+
+  const payload = `data: ${JSON.stringify(action)}\n\n`;
+  sseClients.forEach((client) => {
+    try {
+      client.write(payload);
+    } catch {}
+  });
+
+  return res.json({ ok: true, recipientCount: sseClients.length });
+});
+
 // Helper to get GoogleGenAI client
 function getGenAI() {
   const apiKey = process.env.GEMINI_API_KEY;
