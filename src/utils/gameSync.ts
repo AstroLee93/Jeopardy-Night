@@ -46,10 +46,38 @@ export type SyncAction =
   | { type: 'SET_ROLE'; role: ScreenRole }
   | { type: 'START_GAME'; teams: any[]; gameData?: any }
   | { type: 'OPEN_CLUE'; catIndex: number; clueIndex: number; clue: any; categoryTitle: string }
+  | {
+      type: 'DAILY_DOUBLE_REVEAL';
+      catIndex: number;
+      clueIndex: number;
+      clue: any;
+      categoryTitle: string;
+    }
+  | {
+      type: 'DAILY_DOUBLE_CONFIRM_WAGER';
+      wager: number;
+      teamId: number;
+      teamName: string;
+    }
   | { type: 'START_TIMER' }
   | { type: 'PAUSE_TIMER' }
   | { type: 'RESET_TIMER'; seconds?: number }
   | { type: 'SET_TIME_LEFT'; timeLeft: number }
+  | {
+      type: 'SYNC_TIMER';
+      isRunning: boolean;
+      timeLeft: number;
+      endTime: number | null;
+      initialDuration: number;
+      isThinkMusic?: boolean;
+    }
+  | {
+      type: 'SYNC_FINAL_STAGE';
+      stage: 'WAGER' | 'CLUE' | 'JUDGE';
+      timeLeft?: number;
+      timerRunning?: boolean;
+      endTime?: number | null;
+    }
   | { type: 'TOGGLE_THINK_MUSIC'; active: boolean }
   | { type: 'BUZZ_IN'; teamId: number }
   | { type: 'CLEAR_BUZZER' }

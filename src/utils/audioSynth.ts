@@ -105,27 +105,59 @@ class SoundSynthesizer {
     this.playTripleBuzz();
   }
 
-  // Authentic Daily Double Laser Fanfare
-  public playDailyDouble() {
-    if (!this.enabled) return;
+  // Authentic High-Impact Daily Double Laser Fanfare
+  // Triggers distinct cinematic arpeggios + punchy TV speaker bass impact
+  public playDailyDouble(isTvDisplay = true) {
+    if (!this.enabled || this.volume <= 0) return;
     this.stopThinkMusic();
+    const ctx = this.initCtx();
+    if (!ctx) return;
 
+    // 1. Sub-bass punch (especially satisfying on living room TV / home theater soundbars)
+    if (isTvDisplay) {
+      try {
+        const subOsc = ctx.createOscillator();
+        const subGain = ctx.createGain();
+        subOsc.type = "sine";
+        subOsc.frequency.setValueAtTime(140, ctx.currentTime);
+        subOsc.frequency.exponentialRampToValueAtTime(45, ctx.currentTime + 0.35);
+        subGain.gain.setValueAtTime(0.45 * this.volume, ctx.currentTime);
+        subGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
+        subOsc.connect(subGain);
+        subGain.connect(ctx.destination);
+        subOsc.start();
+        subOsc.stop(ctx.currentTime + 0.35);
+      } catch {}
+    }
+
+    // 2. Rapid arpeggiated synth laser sequence (Iconic Jeopardy signature)
     const notes = [
-      { f: 293.66, d: 0.08 }, // D4
-      { f: 369.99, d: 0.08 }, // F#4
-      { f: 440.00, d: 0.08 }, // A4
-      { f: 587.33, d: 0.14 }, // D5
-      { f: 440.00, d: 0.08 }, // A4
-      { f: 587.33, d: 0.08 }, // D5
+      { f: 293.66, d: 0.07 }, // D4
+      { f: 369.99, d: 0.07 }, // F#4
+      { f: 440.00, d: 0.07 }, // A4
+      { f: 587.33, d: 0.12 }, // D5
+      { f: 440.00, d: 0.07 }, // A4
+      { f: 587.33, d: 0.07 }, // D5
       { f: 739.99, d: 0.08 }, // F#5
-      { f: 880.00, d: 0.38 }  // A5
+      { f: 880.00, d: 0.18 }, // A5
+      { f: 1174.66, d: 0.45 } // D6 (Big bright climax)
     ];
 
     notes.forEach((n, idx) => {
       setTimeout(() => {
-        this.playTone(n.f, n.d, "square", 0.25);
-      }, idx * 95);
+        // Dual-tone layered synthesizer (bright square + rich triangle)
+        this.playTone(n.f, n.d, "square", isTvDisplay ? 0.35 : 0.25);
+        this.playTone(n.f * 1.5, n.d * 0.7, "triangle", isTvDisplay ? 0.2 : 0.12);
+      }, idx * 85);
     });
+
+    // 3. Shimmering Golden Chime trail on TV display
+    if (isTvDisplay) {
+      setTimeout(() => {
+        this.playTone(1760, 0.4, "sine", 0.25); // A6
+        this.playTone(2349.32, 0.5, "triangle", 0.3); // D7
+      }, notes.length * 85 + 20);
+    }
   }
 
   // Victory / Final Podium Fanfare

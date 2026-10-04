@@ -123,12 +123,24 @@ export default function App() {
             categoryTitle: action.categoryTitle
           });
           if (action.clue?.isDailyDouble) {
-            soundFx.playDailyDouble();
+            soundFx.playDailyDouble(role === 'tv');
             setIsDailyDoubleActive(true);
           } else {
             soundFx.playCluePing();
             setIsDailyDoubleActive(false);
           }
+          break;
+
+        case 'DAILY_DOUBLE_REVEAL':
+          setActiveClueData({
+            catIndex: action.catIndex,
+            clueIndex: action.clueIndex,
+            clue: action.clue,
+            categoryTitle: action.categoryTitle
+          });
+          setIsDailyDoubleActive(true);
+          // Trigger high-impact Daily Double fanfare specifically on the TV display
+          soundFx.playDailyDouble(true);
           break;
 
         case 'AWARD_SCORE':
@@ -336,21 +348,27 @@ export default function App() {
     setActiveClueData(data);
 
     if (clue.isDailyDouble) {
-      soundFx.playDailyDouble();
+      soundFx.playDailyDouble(role === 'tv');
       setIsDailyDoubleActive(true);
+      // Broadcast distinctive DAILY_DOUBLE_REVEAL to trigger sound & visual surprise on the TV display!
+      gameSync.broadcast({
+        type: 'DAILY_DOUBLE_REVEAL',
+        catIndex,
+        clueIndex,
+        clue,
+        categoryTitle: category.title
+      });
     } else {
       soundFx.playCluePing();
       setIsDailyDoubleActive(false);
+      gameSync.broadcast({
+        type: 'OPEN_CLUE',
+        catIndex,
+        clueIndex,
+        clue,
+        categoryTitle: category.title
+      });
     }
-
-    // Broadcast OPEN_CLUE to TV screen!
-    gameSync.broadcast({
-      type: 'OPEN_CLUE',
-      catIndex,
-      clueIndex,
-      clue,
-      categoryTitle: category.title
-    });
   };
 
   // Confirm Daily Double wager
@@ -822,6 +840,7 @@ export default function App() {
           <FinalJeopardyModal
             finalData={gameData.finalJeopardy}
             teams={teams}
+            role={role}
             onFinishGame={handleFinishGame}
           />
         )}
@@ -850,6 +869,7 @@ export default function App() {
           clue={activeClueData.clue}
           categoryTitle={activeClueData.categoryTitle}
           teams={teams}
+          role={role}
           onConfirmWager={handleConfirmDailyDoubleWager}
         />
       )}

@@ -80,23 +80,53 @@
       this.playTripleBuzz();
     }
 
-    playDailyDouble() {
+    playDailyDouble(isTv = true) {
       if (!this.enabled) return;
       this.stopThinkMusic();
       this.init();
+      if (!this.ctx) return;
+
+      // Sub-bass thump for TV speakers
+      if (isTv) {
+        try {
+          const subOsc = this.ctx.createOscillator();
+          const subGain = this.ctx.createGain();
+          subOsc.type = "sine";
+          subOsc.frequency.setValueAtTime(140, this.ctx.currentTime);
+          subOsc.frequency.exponentialRampToValueAtTime(45, this.ctx.currentTime + 0.35);
+          subGain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+          subGain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.35);
+          subOsc.connect(subGain);
+          subGain.connect(this.ctx.destination);
+          subOsc.start();
+          subOsc.stop(this.ctx.currentTime + 0.35);
+        } catch {}
+      }
+
       const notes = [
-        { f: 293.66, d: 0.08 },
-        { f: 369.99, d: 0.08 },
-        { f: 440.00, d: 0.08 },
-        { f: 587.33, d: 0.14 },
-        { f: 440.00, d: 0.08 },
-        { f: 587.33, d: 0.08 },
+        { f: 293.66, d: 0.07 },
+        { f: 369.99, d: 0.07 },
+        { f: 440.00, d: 0.07 },
+        { f: 587.33, d: 0.12 },
+        { f: 440.00, d: 0.07 },
+        { f: 587.33, d: 0.07 },
         { f: 739.99, d: 0.08 },
-        { f: 880.00, d: 0.38 }
+        { f: 880.00, d: 0.18 },
+        { f: 1174.66, d: 0.45 }
       ];
       notes.forEach((n, i) => {
-        setTimeout(() => this.playTone(n.f, n.d, "square", 0.25), i * 95);
+        setTimeout(() => {
+          this.playTone(n.f, n.d, "square", isTv ? 0.35 : 0.25);
+          this.playTone(n.f * 1.5, n.d * 0.7, "triangle", isTv ? 0.2 : 0.12);
+        }, i * 85);
       });
+
+      if (isTv) {
+        setTimeout(() => {
+          this.playTone(1760, 0.4, "sine", 0.25);
+          this.playTone(2349.32, 0.5, "triangle", 0.3);
+        }, notes.length * 85 + 20);
+      }
     }
 
     playClueReveal() {
@@ -251,6 +281,10 @@
             if (action.type === "OPEN_CLUE") {
               this.activeClue = action.clue;
               this.renderClueModal();
+            } else if (action.type === "DAILY_DOUBLE_REVEAL") {
+              this.activeClue = action.clue;
+              this.sounds.playDailyDouble(true);
+              this.renderDailyDoubleModal();
             } else if (action.type === "REVEAL_ANSWER") {
               const ansBox = document.getElementById("answer-container");
               if (ansBox) {
@@ -261,6 +295,13 @@
               const existing = document.getElementById("clue-modal-root");
               if (existing) existing.remove();
               this.activeClue = null;
+            } else if (action.type === "SYNC_TIMER") {
+              this.clueTimeLeft = action.timeLeft;
+              this.clueTimerRunning = action.isRunning;
+              this.clueTimerEndTime = action.endTime;
+              if (window.updateStandaloneTimerUI) {
+                window.updateStandaloneTimerUI();
+              }
             }
           };
         }
@@ -558,11 +599,17 @@
       this.isAnswerShown = false;
 
       if (clue.isDailyDouble) {
-        this.sounds.playDailyDouble();
+        this.sounds.playDailyDouble(this.role === "tv");
         this.renderDailyDoubleModal();
+        if (this.channel) {
+          this.channel.postMessage({ type: "DAILY_DOUBLE_REVEAL", clue: this.activeClue });
+        }
       } else {
         this.sounds.playClueReveal();
         this.renderClueModal();
+        if (this.channel) {
+          this.channel.postMessage({ type: "OPEN_CLUE", clue: this.activeClue });
+        }
       }
     },
 
@@ -753,29 +800,55 @@
           timerToggle.textContent = this.clueTimerRunning ? "⏸ Pause" : "▶ Start";
         }
       };
+      window.updateStandaloneTimerUI = updateTimerUI;
+
+      const broadcastTimer = (isRunning, end) => {
+        if (this.channel) {
+          this.channel.postMessage({
+            type: "SYNC_TIMER",
+            isRunning,
+            timeLeft: this.clueTimeLeft,
+            endTime: end
+          });
+        }
+      };
 
       const startTimer = () => {
         this.clueTimerRunning = true;
+        const end = Date.now() + this.clueTimeLeft * 1000;
+        this.clueTimerEndTime = end;
         updateTimerUI();
+        broadcastTimer(true, end);
+
         if (this.thinkMusicActive) {
           this.sounds.playThinkMusic();
         }
+        if (this.clueTimerInterval) clearInterval(this.clueTimerInterval);
+
         this.clueTimerInterval = setInterval(() => {
-          if (this.clueTimeLeft > 0) {
-            this.clueTimeLeft--;
-            if (this.clueTimeLeft <= 5 && this.clueTimeLeft > 0) {
+          const now = Date.now();
+          if (this.clueTimerEndTime) {
+            const diff = this.clueTimerEndTime - now;
+            const remaining = Math.max(0, Math.ceil(diff / 1000));
+            this.clueTimeLeft = remaining;
+
+            if (remaining <= 5 && remaining > 0) {
               this.sounds.playThinkingTimer();
             }
             updateTimerUI();
-            if (this.clueTimeLeft === 0) {
+
+            if (diff <= 0) {
               clearInterval(this.clueTimerInterval);
+              this.clueTimerInterval = null;
               this.clueTimerRunning = false;
+              this.clueTimeLeft = 0;
               this.sounds.stopThinkMusic();
               this.sounds.playTripleBuzz();
               updateTimerUI();
+              broadcastTimer(false, null);
             }
           }
-        }, 1000);
+        }, 100);
       };
 
       const pauseTimer = () => {
@@ -784,8 +857,10 @@
           clearInterval(this.clueTimerInterval);
           this.clueTimerInterval = null;
         }
+        this.clueTimerEndTime = null;
         this.sounds.stopThinkMusic();
         updateTimerUI();
+        broadcastTimer(false, null);
       };
 
       timerToggle.addEventListener("click", () => {
@@ -815,13 +890,19 @@
 
       add5Btn.addEventListener("click", () => {
         this.clueTimeLeft += 5;
+        if (this.clueTimerRunning) {
+          this.clueTimerEndTime = Date.now() + this.clueTimeLeft * 1000;
+        }
         updateTimerUI();
+        broadcastTimer(this.clueTimerRunning, this.clueTimerEndTime);
       });
 
       resetBtn.addEventListener("click", () => {
         pauseTimer();
         this.clueTimeLeft = 15;
+        this.clueTimerEndTime = null;
         updateTimerUI();
+        broadcastTimer(false, null);
       });
 
       // Read Aloud Speech Synthesis

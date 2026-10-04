@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { FinalJeopardyItem } from '../data/animeJeopardyData';
 import { Team } from './ScoreBoard';
 import { soundFx } from '../utils/audioSynth';
-import { Trophy, Clock, Check, X } from 'lucide-react';
+import { gameSync, ScreenRole } from '../utils/gameSync';
+import { Trophy, Clock, Check, X, Tv, Crown } from 'lucide-react';
 
 interface FinalJeopardyModalProps {
   finalData: FinalJeopardyItem;
   teams: Team[];
+  role?: ScreenRole;
   onFinishGame: (updatedTeams: Team[]) => void;
 }
 
@@ -15,6 +17,7 @@ type Stage = 'WAGER' | 'CLUE' | 'JUDGE';
 export const FinalJeopardyModal: React.FC<FinalJeopardyModalProps> = ({
   finalData,
   teams,
+  role = 'host',
   onFinishGame
 }) => {
   const [stage, setStage] = useState<Stage>('WAGER');
@@ -34,37 +37,105 @@ export const FinalJeopardyModal: React.FC<FinalJeopardyModalProps> = ({
     return init;
   });
 
+  // Timestamp-based synchronized 30s timer
   const [timeLeft, setTimeLeft] = useState<number>(30);
   const [timerRunning, setTimerRunning] = useState<boolean>(false);
+  const [timerEndTime, setTimerEndTime] = useState<number | null>(null);
 
+  // Sync listener across screens
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (stage === 'CLUE' && timerRunning && timeLeft > 0) {
+    const unsubscribe = gameSync.subscribe((action) => {
+      if (action.type === 'SYNC_FINAL_STAGE') {
+        setStage(action.stage);
+        if (action.timeLeft !== undefined) setTimeLeft(action.timeLeft);
+        if (action.timerRunning !== undefined) setTimerRunning(action.timerRunning);
+        if (action.endTime !== undefined) setTimerEndTime(action.endTime);
+
+        if (action.stage === 'CLUE' && action.timerRunning) {
+          soundFx.playCluePing();
+          soundFx.playThinkMusic();
+        } else if (action.stage === 'JUDGE') {
+          soundFx.stopThinkMusic();
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      soundFx.stopThinkMusic();
+    };
+  }, []);
+
+  // High-precision countdown loop
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (stage === 'CLUE' && timerRunning && timerEndTime) {
       interval = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            soundFx.playWrong();
-            setTimerRunning(false);
-            return 0;
-          }
+        const now = Date.now();
+        const diffMs = timerEndTime - now;
+        const secondsRemaining = Math.max(0, Math.ceil(diffMs / 1000));
+
+        setTimeLeft(secondsRemaining);
+
+        if (secondsRemaining <= 5 && secondsRemaining > 0) {
           soundFx.playTimerTick();
-          return prev - 1;
-        });
-      }, 1000);
+        }
+
+        if (diffMs <= 0) {
+          setTimerRunning(false);
+          setTimerEndTime(null);
+          setTimeLeft(0);
+          soundFx.stopThinkMusic();
+          soundFx.playWrong();
+
+          if (role === 'host') {
+            gameSync.broadcast({
+              type: 'SYNC_FINAL_STAGE',
+              stage: 'CLUE',
+              timeLeft: 0,
+              timerRunning: false,
+              endTime: null
+            });
+          }
+        }
+      }, 100);
     }
-    return () => clearInterval(interval);
-  }, [stage, timerRunning, timeLeft]);
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [stage, timerRunning, timerEndTime, role]);
 
   const handleStartClue = () => {
+    const end = Date.now() + 30 * 1000;
     setStage('CLUE');
     setTimeLeft(30);
+    setTimerEndTime(end);
     setTimerRunning(true);
     soundFx.playCluePing();
+    soundFx.playThinkMusic();
+
+    gameSync.broadcast({
+      type: 'SYNC_FINAL_STAGE',
+      stage: 'CLUE',
+      timeLeft: 30,
+      timerRunning: true,
+      endTime: end
+    });
   };
 
   const handleGoToJudge = () => {
+    soundFx.stopThinkMusic();
     setTimerRunning(false);
+    setTimerEndTime(null);
     setStage('JUDGE');
+
+    gameSync.broadcast({
+      type: 'SYNC_FINAL_STAGE',
+      stage: 'JUDGE',
+      timerRunning: false,
+      endTime: null
+    });
   };
 
   const handleComplete = () => {
@@ -89,11 +160,21 @@ export const FinalJeopardyModal: React.FC<FinalJeopardyModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-[#010314]/95 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div className="w-full max-w-4xl bg-gradient-to-b from-[#0b15c9] via-[#04097a] to-[#020536] border-4 border-[#ffcc00] rounded-2xl p-5 sm:p-8 shadow-2xl text-center">
-        {/* Header */}
-        <div className="inline-flex items-center gap-2 text-[#ffcc00] font-bold text-xs uppercase tracking-widest bg-amber-500/10 border border-[#ffcc00]/40 px-3 py-1 rounded-full mb-2">
-          <Trophy className="w-4 h-4" /> The Final Showdown
+      <div className={`w-full max-w-4xl bg-gradient-to-b from-[#0b15c9] via-[#04097a] to-[#020536] border-4 rounded-2xl p-5 sm:p-8 shadow-2xl text-center ${
+        role === 'tv' ? 'border-cyan-400' : 'border-[#ffcc00]'
+      }`}>
+        {/* Header with role badge */}
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <div className="inline-flex items-center gap-2 text-[#ffcc00] font-bold text-xs uppercase tracking-widest bg-amber-500/10 border border-[#ffcc00]/40 px-3 py-1 rounded-full">
+            <Trophy className="w-4 h-4" /> The Final Showdown
+          </div>
+          <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded border ${
+            role === 'tv' ? 'bg-cyan-950 text-cyan-300 border-cyan-500' : 'bg-amber-950 text-amber-300 border-amber-500'
+          }`}>
+            {role === 'tv' ? '📺 TV Screen' : '👑 Host Controller'}
+          </span>
         </div>
+
         <h1 className="font-jeopardy-display text-3xl sm:text-4xl md:text-5xl text-[#ffcc00] tracking-wider uppercase mb-1">
           FINAL JEOPARDY
         </h1>
@@ -122,23 +203,29 @@ export const FinalJeopardyModal: React.FC<FinalJeopardyModalProps> = ({
                       <span className="text-xs font-bold text-slate-200 truncate">{team.name}</span>
                       <span className="text-xs text-amber-300">${team.score}</span>
                     </div>
-                    <div className="flex items-center gap-1 bg-black/40 border border-slate-600 rounded px-2 py-1">
-                      <span className="text-xs text-[#ffcc00] font-bold">$</span>
-                      <input
-                        type="number"
-                        min={0}
-                        max={maxWager}
-                        value={currentVal}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value, 10) || 0;
-                          setWagers((prev) => ({
-                            ...prev,
-                            [team.id]: Math.max(0, Math.min(val, maxWager))
-                          }));
-                        }}
-                        className="w-full bg-transparent text-sm text-white font-mono font-bold outline-none"
-                      />
-                    </div>
+                    {role === 'host' ? (
+                      <div className="flex items-center gap-1 bg-black/40 border border-slate-600 rounded px-2 py-1">
+                        <span className="text-xs text-[#ffcc00] font-bold">$</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={maxWager}
+                          value={currentVal}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10) || 0;
+                            setWagers((prev) => ({
+                              ...prev,
+                              [team.id]: Math.max(0, Math.min(val, maxWager))
+                            }));
+                          }}
+                          className="w-full bg-transparent text-sm text-white font-mono font-bold outline-none"
+                        />
+                      </div>
+                    ) : (
+                      <div className="text-xs font-mono font-bold text-amber-300 py-1">
+                        [Wager Recorded Privately]
+                      </div>
+                    )}
                     <span className="text-[10px] text-slate-400 block mt-1">
                       Max: ${maxWager.toLocaleString()}
                     </span>
@@ -147,13 +234,19 @@ export const FinalJeopardyModal: React.FC<FinalJeopardyModalProps> = ({
               })}
             </div>
 
-            <button
-              type="button"
-              onClick={handleStartClue}
-              className="py-3 px-8 bg-[#ffcc00] hover:bg-[#ffe066] text-[#030852] font-jeopardy-display text-xl uppercase tracking-wider rounded-xl shadow-lg transition-transform hover:-translate-y-0.5 cursor-pointer"
-            >
-              Lock Wagers & Reveal Clue
-            </button>
+            {role === 'host' ? (
+              <button
+                type="button"
+                onClick={handleStartClue}
+                className="py-3 px-8 bg-[#ffcc00] hover:bg-[#ffe066] text-[#030852] font-jeopardy-display text-xl uppercase tracking-wider rounded-xl shadow-lg transition-transform hover:-translate-y-0.5 cursor-pointer"
+              >
+                Lock Wagers & Reveal Clue on TV
+              </button>
+            ) : (
+              <div className="text-xs text-cyan-300 italic">
+                Waiting for host to lock wagers and reveal clue...
+              </div>
+            )}
           </div>
         )}
 
@@ -179,23 +272,27 @@ export const FinalJeopardyModal: React.FC<FinalJeopardyModalProps> = ({
               {finalData.clue}
             </div>
 
-            {/* 30s Countdown timer */}
+            {/* Synchronized 30s Countdown timer */}
             <div className="flex items-center justify-center gap-3">
               <Clock className="w-8 h-8 text-[#ffcc00]" />
-              <span className="font-jeopardy-display text-5xl sm:text-6xl text-[#ffcc00] tabular-nums tracking-wider drop-shadow-md">
-                {timeLeft}s
+              <span className={`font-jeopardy-display text-5xl sm:text-6xl tabular-nums tracking-wider drop-shadow-md ${
+                timeLeft <= 5 ? 'text-red-400 animate-pulse' : 'text-[#ffcc00]'
+              }`}>
+                {timeLeft === 0 ? "TIME'S UP!" : `${timeLeft}s`}
               </span>
             </div>
 
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={handleGoToJudge}
-                className="py-3 px-8 bg-[#ffcc00] hover:bg-[#ffe066] text-[#030852] font-jeopardy-display text-xl uppercase tracking-wider rounded-xl shadow-lg cursor-pointer"
-              >
-                Proceed to Answer & Grading
-              </button>
-            </div>
+            {role === 'host' && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleGoToJudge}
+                  className="py-3 px-8 bg-[#ffcc00] hover:bg-[#ffe066] text-[#030852] font-jeopardy-display text-xl uppercase tracking-wider rounded-xl shadow-lg cursor-pointer"
+                >
+                  Proceed to Answer & Grading
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -211,72 +308,80 @@ export const FinalJeopardyModal: React.FC<FinalJeopardyModalProps> = ({
               </div>
             </div>
 
-            <p className="text-xs font-bold text-[#ffcc00] uppercase tracking-wider">
-              Host: Mark Each Team's Written Answer
-            </p>
+            {role === 'host' ? (
+              <>
+                <p className="text-xs font-bold text-[#ffcc00] uppercase tracking-wider">
+                  Host: Mark Each Team's Written Answer
+                </p>
 
-            <div className="space-y-2 max-w-2xl mx-auto">
-              {teams.map((team) => {
-                const wager = wagers[team.id] || 0;
-                const status = judgments[team.id];
+                <div className="space-y-2 max-w-2xl mx-auto">
+                  {teams.map((team) => {
+                    const wager = wagers[team.id] || 0;
+                    const status = judgments[team.id];
 
-                return (
-                  <div
-                    key={team.id}
-                    className="flex items-center justify-between bg-[#02052c] border border-slate-700 rounded-xl px-4 py-2.5"
-                  >
-                    <div className="text-left">
-                      <span className="font-semibold text-white block text-sm sm:text-base">
-                        {team.name}
-                      </span>
-                      <span className="text-xs text-slate-400">
-                        Score: ${team.score} · Wager: ${wager}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setJudgments((prev) => ({ ...prev, [team.id]: true }));
-                          soundFx.playCorrect();
-                        }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
-                          status === true
-                            ? 'bg-emerald-600 text-white ring-2 ring-white'
-                            : 'bg-slate-800 text-slate-300 hover:bg-emerald-900/60'
-                        }`}
+                    return (
+                      <div
+                        key={team.id}
+                        className="flex items-center justify-between bg-[#02052c] border border-slate-700 rounded-xl px-4 py-2.5"
                       >
-                        <Check className="w-3.5 h-3.5" /> Correct (+${wager})
-                      </button>
+                        <div className="text-left">
+                          <span className="font-semibold text-white block text-sm sm:text-base">
+                            {team.name}
+                          </span>
+                          <span className="text-xs text-slate-400">
+                            Score: ${team.score} · Wager: ${wager}
+                          </span>
+                        </div>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setJudgments((prev) => ({ ...prev, [team.id]: false }));
-                          soundFx.playWrong();
-                        }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
-                          status === false
-                            ? 'bg-red-700 text-white ring-2 ring-white'
-                            : 'bg-slate-800 text-slate-300 hover:bg-red-900/60'
-                        }`}
-                      >
-                        <X className="w-3.5 h-3.5" /> Wrong (-${wager})
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setJudgments((prev) => ({ ...prev, [team.id]: true }));
+                              soundFx.playCorrect();
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                              status === true
+                                ? 'bg-emerald-600 text-white ring-2 ring-white'
+                                : 'bg-slate-800 text-slate-300 hover:bg-emerald-900/60'
+                            }`}
+                          >
+                            <Check className="w-3.5 h-3.5" /> Correct (+${wager})
+                          </button>
 
-            <button
-              type="button"
-              onClick={handleComplete}
-              className="py-3.5 px-10 bg-[#ffcc00] hover:bg-[#ffe066] text-[#030852] font-jeopardy-display text-xl uppercase tracking-wider rounded-xl shadow-xl transition-transform hover:-translate-y-0.5 cursor-pointer"
-            >
-              👑 Conclude Game & Show Champion
-            </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setJudgments((prev) => ({ ...prev, [team.id]: false }));
+                              soundFx.playWrong();
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                              status === false
+                                ? 'bg-red-700 text-white ring-2 ring-white'
+                                : 'bg-slate-800 text-slate-300 hover:bg-red-900/60'
+                            }`}
+                          >
+                            <X className="w-3.5 h-3.5" /> Wrong (-${wager})
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleComplete}
+                  className="py-3.5 px-10 bg-[#ffcc00] hover:bg-[#ffe066] text-[#030852] font-jeopardy-display text-xl uppercase tracking-wider rounded-xl shadow-xl transition-transform hover:-translate-y-0.5 cursor-pointer"
+                >
+                  👑 Conclude Game & Show Champion
+                </button>
+              </>
+            ) : (
+              <div className="text-sm text-cyan-300 font-semibold py-4">
+                The host is grading final answers... Champion will be revealed shortly!
+              </div>
+            )}
           </div>
         )}
       </div>

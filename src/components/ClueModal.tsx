@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ClueItem } from '../data/animeJeopardyData';
 import { Team } from './ScoreBoard';
 import { soundFx } from '../utils/audioSynth';
@@ -44,9 +44,10 @@ export const ClueModal: React.FC<ClueModalProps> = ({
   const [showHostPrivateAnswer, setShowHostPrivateAnswer] = useState(true);
   const [imgError, setImgError] = useState(false);
 
-  // Timer State
-  const initialDuration = 15;
-  const [timeLeft, setTimeLeft] = useState<number>(initialDuration);
+  // Authoritative Timestamp-Based Timer State
+  const [initialDuration, setInitialDuration] = useState<number>(15);
+  const [timeLeft, setTimeLeft] = useState<number>(15);
+  const [timerEndTime, setTimerEndTime] = useState<number | null>(null);
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
   const [isThinkMusicActive, setIsThinkMusicActive] = useState<boolean>(false);
 
@@ -57,42 +58,78 @@ export const ClueModal: React.FC<ClueModalProps> = ({
   const [buzzedTeamId, setBuzzedTeamId] = useState<number | null>(null);
   const [lockedOutTeamIds, setLockedOutTeamIds] = useState<Set<number>>(new Set());
 
+  // Ref to track last tick sound played to avoid duplicate audio ticks
+  const lastTickSoundSec = useRef<number | null>(null);
+
   // Multi-Screen Synchronization Listener
   useEffect(() => {
     const unsubscribe = gameSync.subscribe((action) => {
       switch (action.type) {
+        case 'SYNC_TIMER':
+          setIsTimerRunning(action.isRunning);
+          setTimeLeft(action.timeLeft);
+          setTimerEndTime(action.endTime);
+          if (action.initialDuration) {
+            setInitialDuration(action.initialDuration);
+          }
+          if (action.isThinkMusic !== undefined) {
+            setIsThinkMusicActive(action.isThinkMusic);
+            if (action.isThinkMusic && action.isRunning) {
+              soundFx.playThinkMusic();
+            } else if (!action.isThinkMusic) {
+              soundFx.stopThinkMusic();
+            }
+          }
+          if (action.timeLeft === 0 && !action.isRunning) {
+            soundFx.stopThinkMusic();
+            soundFx.playTripleBuzz();
+          }
+          break;
+
+        case 'START_TIMER':
+          setIsTimerRunning(true);
+          break;
+
+        case 'PAUSE_TIMER':
+          setIsTimerRunning(false);
+          setTimerEndTime(null);
+          soundFx.stopThinkMusic();
+          break;
+
+        case 'RESET_TIMER':
+          setIsTimerRunning(false);
+          setTimerEndTime(null);
+          setTimeLeft(action.seconds || 15);
+          setInitialDuration(action.seconds || 15);
+          soundFx.stopThinkMusic();
+          break;
+
         case 'REVEAL_ANSWER_ON_TV':
           setIsAnswerRevealed(true);
           soundFx.playCorrect();
           soundFx.stopThinkMusic();
           setIsTimerRunning(false);
+          setTimerEndTime(null);
           break;
-        case 'START_TIMER':
-          setIsTimerRunning(true);
-          break;
-        case 'PAUSE_TIMER':
-          setIsTimerRunning(false);
-          soundFx.stopThinkMusic();
-          break;
-        case 'RESET_TIMER':
-          setIsTimerRunning(false);
-          setTimeLeft(action.seconds || 15);
-          soundFx.stopThinkMusic();
-          break;
+
         case 'TOGGLE_THINK_MUSIC':
           setIsThinkMusicActive(action.active);
           if (action.active) soundFx.playThinkMusic();
           else soundFx.stopThinkMusic();
           break;
+
         case 'BUZZ_IN':
           setBuzzedTeamId(action.teamId);
           setIsTimerRunning(false);
+          setTimerEndTime(null);
           soundFx.playBuzzer();
           soundFx.stopThinkMusic();
           break;
+
         case 'CLEAR_BUZZER':
           setBuzzedTeamId(null);
           break;
+
         case 'CLOSE_CLUE':
           soundFx.stopThinkMusic();
           soundFx.stopSpeaking();
@@ -107,6 +144,70 @@ export const ClueModal: React.FC<ClueModalProps> = ({
       soundFx.stopSpeaking();
     };
   }, [onClose]);
+
+  // High-Precision Timestamp Calculation Loop
+  useEffect(() => {
+    let timerId: NodeJS.Timeout | null = null;
+
+    if (isTimerRunning && timerEndTime) {
+      timerId = setInterval(() => {
+        const now = Date.now();
+        const diffMs = timerEndTime - now;
+        const secondsRemaining = Math.max(0, Math.ceil(diffMs / 1000));
+
+        setTimeLeft(secondsRemaining);
+
+        // Sound cues for 5s down to 1s
+        if (secondsRemaining <= 5 && secondsRemaining > 0 && lastTickSoundSec.current !== secondsRemaining) {
+          lastTickSoundSec.current = secondsRemaining;
+          soundFx.playTimerTick();
+        }
+
+        // Time's Up Trigger
+        if (diffMs <= 0) {
+          setIsTimerRunning(false);
+          setTimerEndTime(null);
+          setTimeLeft(0);
+          soundFx.stopThinkMusic();
+          soundFx.playTripleBuzz();
+          setIsThinkMusicActive(false);
+
+          if (role === 'host') {
+            gameSync.broadcast({
+              type: 'SYNC_TIMER',
+              isRunning: false,
+              timeLeft: 0,
+              endTime: null,
+              initialDuration,
+              isThinkMusic: false
+            });
+          }
+        }
+      }, 100);
+    }
+
+    return () => {
+      if (timerId) clearInterval(timerId);
+    };
+  }, [isTimerRunning, timerEndTime, initialDuration, role]);
+
+  // Host Periodic Sync Heartbeat (broadcasts exact timestamp every 1s while running)
+  useEffect(() => {
+    if (role !== 'host' || !isTimerRunning || !timerEndTime) return;
+
+    const heartbeat = setInterval(() => {
+      gameSync.broadcast({
+        type: 'SYNC_TIMER',
+        isRunning: true,
+        timeLeft,
+        endTime: timerEndTime,
+        initialDuration,
+        isThinkMusic: isThinkMusicActive
+      });
+    }, 1000);
+
+    return () => clearInterval(heartbeat);
+  }, [role, isTimerRunning, timerEndTime, timeLeft, initialDuration, isThinkMusicActive]);
 
   // Keyboard buzzer listener
   useEffect(() => {
@@ -144,10 +245,21 @@ export const ClueModal: React.FC<ClueModalProps> = ({
     soundFx.playBuzzer();
     setBuzzedTeamId(teamId);
     setIsTimerRunning(false);
+    setTimerEndTime(null);
+
     if (isThinkMusicActive) {
       soundFx.stopThinkMusic();
     }
+
     gameSync.broadcast({ type: 'BUZZ_IN', teamId });
+    gameSync.broadcast({
+      type: 'SYNC_TIMER',
+      isRunning: false,
+      timeLeft,
+      endTime: null,
+      initialDuration,
+      isThinkMusic: isThinkMusicActive
+    });
   };
 
   const handleClearBuzzer = () => {
@@ -155,75 +267,104 @@ export const ClueModal: React.FC<ClueModalProps> = ({
     gameSync.broadcast({ type: 'CLEAR_BUZZER' });
   };
 
-  // Timer interval countdown
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (isTimerRunning && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            soundFx.stopThinkMusic();
-            soundFx.playTripleBuzz();
-            setIsTimerRunning(false);
-            setIsThinkMusicActive(false);
-            return 0;
-          }
-          if (prev <= 6) {
-            soundFx.playTimerTick();
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isTimerRunning, timeLeft]);
-
-  // Toggle Timer
+  // Toggle Timer (Host Action)
   const handleToggleTimer = () => {
     soundFx.initCtx();
     if (!isTimerRunning) {
-      if (timeLeft === 0) {
-        setTimeLeft(initialDuration);
-      }
+      const duration = timeLeft === 0 ? 15 : timeLeft;
+      const end = Date.now() + duration * 1000;
+      setTimeLeft(duration);
+      setTimerEndTime(end);
       setIsTimerRunning(true);
-      gameSync.broadcast({ type: 'START_TIMER' });
+      lastTickSoundSec.current = null;
+
       if (isThinkMusicActive) {
         soundFx.playThinkMusic();
       }
+
+      gameSync.broadcast({
+        type: 'SYNC_TIMER',
+        isRunning: true,
+        timeLeft: duration,
+        endTime: end,
+        initialDuration: Math.max(initialDuration, duration),
+        isThinkMusic: isThinkMusicActive
+      });
     } else {
+      const remaining = timerEndTime ? Math.max(0, Math.ceil((timerEndTime - Date.now()) / 1000)) : timeLeft;
       setIsTimerRunning(false);
+      setTimerEndTime(null);
+      setTimeLeft(remaining);
       soundFx.stopThinkMusic();
-      gameSync.broadcast({ type: 'PAUSE_TIMER' });
+
+      gameSync.broadcast({
+        type: 'SYNC_TIMER',
+        isRunning: false,
+        timeLeft: remaining,
+        endTime: null,
+        initialDuration,
+        isThinkMusic: isThinkMusicActive
+      });
     }
   };
 
-  // Reset Timer
-  const handleResetTimer = (seconds = initialDuration) => {
+  // Reset Timer (Host Action)
+  const handleResetTimer = (seconds = 15) => {
     soundFx.stopThinkMusic();
     setIsTimerRunning(false);
+    setTimerEndTime(null);
     setTimeLeft(seconds);
+    setInitialDuration(seconds);
     setIsThinkMusicActive(false);
-    gameSync.broadcast({ type: 'RESET_TIMER', seconds });
+    lastTickSoundSec.current = null;
+
+    gameSync.broadcast({
+      type: 'SYNC_TIMER',
+      isRunning: false,
+      timeLeft: seconds,
+      endTime: null,
+      initialDuration: seconds,
+      isThinkMusic: false
+    });
   };
 
-  // Add 5 seconds to timer
+  // Add 5 seconds to timer (Host Action)
   const handleAddFiveSeconds = () => {
-    setTimeLeft((prev) => prev + 5);
+    const curRemaining = timerEndTime ? Math.max(0, Math.ceil((timerEndTime - Date.now()) / 1000)) : timeLeft;
+    const newTime = curRemaining + 5;
+    const newEnd = isTimerRunning ? Date.now() + newTime * 1000 : null;
+    const newInit = Math.max(initialDuration, newTime);
+
+    setTimeLeft(newTime);
+    setTimerEndTime(newEnd);
+    setInitialDuration(newInit);
+
+    gameSync.broadcast({
+      type: 'SYNC_TIMER',
+      isRunning: isTimerRunning,
+      timeLeft: newTime,
+      endTime: newEnd,
+      initialDuration: newInit,
+      isThinkMusic: isThinkMusicActive
+    });
   };
 
-  // Toggle Jeopardy Think Music
+  // Toggle Jeopardy Think Music (Host Action)
   const handleToggleThinkMusic = () => {
     soundFx.initCtx();
     const nextState = !isThinkMusicActive;
     setIsThinkMusicActive(nextState);
+
     if (nextState) {
-      if (!isTimerRunning) setIsTimerRunning(true);
-      soundFx.playThinkMusic();
+      if (!isTimerRunning) {
+        handleToggleTimer();
+      } else {
+        soundFx.playThinkMusic();
+      }
     } else {
       soundFx.stopThinkMusic();
     }
+
     gameSync.broadcast({ type: 'TOGGLE_THINK_MUSIC', active: nextState });
   };
 
@@ -246,28 +387,48 @@ export const ClueModal: React.FC<ClueModalProps> = ({
     soundFx.stopThinkMusic();
     soundFx.stopSpeaking();
     setIsTimerRunning(false);
+    setTimerEndTime(null);
     setIsAnswerRevealed(true);
     soundFx.playCorrect();
-    // Synchronize to the TV screen immediately!
+
     gameSync.broadcast({ type: 'REVEAL_ANSWER_ON_TV' });
+    gameSync.broadcast({
+      type: 'SYNC_TIMER',
+      isRunning: false,
+      timeLeft,
+      endTime: null,
+      initialDuration,
+      isThinkMusic: false
+    });
   };
 
   const handleCorrect = (teamId: number) => {
     soundFx.stopThinkMusic();
     soundFx.stopSpeaking();
     setIsTimerRunning(false);
+    setTimerEndTime(null);
     onAwardScore(teamId, clue.value);
     soundFx.playCorrect();
     setIsAnswerRevealed(true);
+
     gameSync.broadcast({ type: 'AWARD_SCORE', teamId, delta: clue.value });
     gameSync.broadcast({ type: 'REVEAL_ANSWER_ON_TV' });
+    gameSync.broadcast({
+      type: 'SYNC_TIMER',
+      isRunning: false,
+      timeLeft,
+      endTime: null,
+      initialDuration,
+      isThinkMusic: false
+    });
   };
 
   const handleWrong = (teamId: number) => {
     onAwardScore(teamId, -clue.value);
     soundFx.playWrong();
-    setLockedOutTeamIds(prev => new Set(prev).add(teamId));
+    setLockedOutTeamIds((prev) => new Set(prev).add(teamId));
     setBuzzedTeamId(null);
+
     gameSync.broadcast({ type: 'AWARD_SCORE', teamId, delta: -clue.value });
     gameSync.broadcast({ type: 'CLEAR_BUZZER' });
   };
@@ -279,25 +440,29 @@ export const ClueModal: React.FC<ClueModalProps> = ({
     onClose();
   };
 
-  const buzzedTeam = teams.find(t => t.id === buzzedTeamId);
-  const progressPercent = Math.min(100, Math.max(0, (timeLeft / initialDuration) * 100));
+  const buzzedTeam = teams.find((t) => t.id === buzzedTeamId);
+  const progressPercent = Math.min(100, Math.max(0, (timeLeft / (initialDuration || 15)) * 100));
 
   return (
     <div className="fixed inset-0 z-50 bg-[#010314]/94 backdrop-blur-md flex items-center justify-center p-2 sm:p-5 overflow-y-auto">
-      <div className={`w-full max-w-4xl bg-gradient-to-b from-[#0b15c9] via-[#04097a] to-[#020536] border-2 sm:border-4 rounded-2xl p-4 sm:p-7 shadow-2xl flex flex-col justify-between max-h-[96vh] overflow-y-auto ${
-        role === 'tv' ? 'border-cyan-400' : 'border-[#ffcc00]'
-      }`}>
+      <div
+        className={`w-full max-w-4xl bg-gradient-to-b from-[#0b15c9] via-[#04097a] to-[#020536] border-2 sm:border-4 rounded-2xl p-4 sm:p-7 shadow-2xl flex flex-col justify-between max-h-[96vh] overflow-y-auto ${
+          role === 'tv' ? 'border-cyan-400' : 'border-[#ffcc00]'
+        }`}
+      >
         {/* ===================================================================
-            TOP BAR: Role Indicator, Category, Visible Countdown Timer
+            TOP BAR: Role Indicator, Category, Authoritative Countdown Timer
             =================================================================== */}
         <div className="border-b-2 border-[#ffcc00]/40 pb-3 mb-2">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded flex items-center gap-1 border ${
-                role === 'tv'
-                  ? 'bg-cyan-950 text-cyan-300 border-cyan-500'
-                  : 'bg-amber-950 text-amber-300 border-amber-500'
-              }`}>
+              <span
+                className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded flex items-center gap-1 border ${
+                  role === 'tv'
+                    ? 'bg-cyan-950 text-cyan-300 border-cyan-500'
+                    : 'bg-amber-950 text-amber-300 border-amber-500'
+                }`}
+              >
                 {role === 'tv' ? <Tv className="w-3 h-3" /> : <Crown className="w-3 h-3" />}
                 {role === 'tv' ? 'TV Big Screen View' : 'Host Controller'}
               </span>
@@ -309,15 +474,21 @@ export const ClueModal: React.FC<ClueModalProps> = ({
 
             {/* LIVE COUNTDOWN TIMER & CONTROLS */}
             <div className="flex items-center gap-1.5 sm:gap-2 bg-[#02052c] border border-amber-500/50 rounded-xl px-2.5 sm:px-3 py-1.5 shadow-md flex-wrap">
-              <Clock className={`w-4 h-4 ${timeLeft <= 3 && timeLeft > 0 ? 'text-red-400 animate-pulse' : 'text-[#ffcc00]'}`} />
-              
-              <span className={`font-jeopardy-display text-lg sm:text-xl tabular-nums font-bold ${
-                timeLeft === 0 
-                  ? 'text-red-500 animate-bounce' 
-                  : timeLeft <= 5 
-                    ? 'text-amber-400' 
+              <Clock
+                className={`w-4 h-4 ${
+                  timeLeft <= 3 && timeLeft > 0 ? 'text-red-400 animate-pulse' : 'text-[#ffcc00]'
+                }`}
+              />
+
+              <span
+                className={`font-jeopardy-display text-lg sm:text-xl tabular-nums font-bold ${
+                  timeLeft === 0
+                    ? 'text-red-500 animate-bounce'
+                    : timeLeft <= 5
+                    ? 'text-amber-400'
                     : 'text-white'
-              }`}>
+                }`}
+              >
                 {timeLeft === 0 ? "TIME'S UP!" : `${timeLeft}s`}
               </span>
 
@@ -327,7 +498,7 @@ export const ClueModal: React.FC<ClueModalProps> = ({
                   <button
                     type="button"
                     onClick={handleToggleTimer}
-                    title={isTimerRunning ? "Pause Timer" : "Start Countdown"}
+                    title={isTimerRunning ? 'Pause Timer' : 'Start Countdown'}
                     className={`p-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer ${
                       isTimerRunning
                         ? 'bg-amber-500 text-[#030852]'
@@ -340,7 +511,7 @@ export const ClueModal: React.FC<ClueModalProps> = ({
                   <button
                     type="button"
                     onClick={handleToggleThinkMusic}
-                    title={isThinkMusicActive ? "Mute Think Music" : "Play Iconic Jeopardy Theme"}
+                    title={isThinkMusicActive ? 'Mute Think Music' : 'Play Iconic Jeopardy Theme'}
                     className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       isThinkMusicActive
                         ? 'bg-purple-600 text-white ring-2 ring-purple-400 animate-pulse'
@@ -353,7 +524,7 @@ export const ClueModal: React.FC<ClueModalProps> = ({
                   <button
                     type="button"
                     onClick={handleToggleSpeech}
-                    title={isReadingAloud ? "Stop reading" : "Read clue aloud (Computer Voice)"}
+                    title={isReadingAloud ? 'Stop reading' : 'Read clue aloud (Computer Voice)'}
                     className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       isReadingAloud
                         ? 'bg-cyan-600 text-white ring-2 ring-cyan-400 animate-pulse'
@@ -392,12 +563,8 @@ export const ClueModal: React.FC<ClueModalProps> = ({
           {/* Animated Countdown Progress Bar */}
           <div className="w-full h-1.5 bg-slate-900 rounded-full mt-2.5 overflow-hidden border border-slate-700">
             <div
-              className={`h-full transition-all duration-1000 ease-linear rounded-full ${
-                timeLeft <= 3 
-                  ? 'bg-red-500' 
-                  : timeLeft <= 6 
-                    ? 'bg-amber-400' 
-                    : 'bg-emerald-400'
+              className={`h-full transition-all duration-300 ease-linear rounded-full ${
+                timeLeft <= 3 ? 'bg-red-500' : timeLeft <= 6 ? 'bg-amber-400' : 'bg-emerald-400'
               }`}
               style={{ width: `${progressPercent}%` }}
             />
@@ -539,9 +706,7 @@ export const ClueModal: React.FC<ClueModalProps> = ({
                     {clue.answer}
                   </div>
                 ) : (
-                  <div className="text-xs text-slate-500 italic pl-5">
-                    Answer hidden to prevent peeking
-                  </div>
+                  <div className="text-xs text-slate-500 italic pl-5">Answer hidden to prevent peeking</div>
                 )}
               </div>
               <button
@@ -611,7 +776,9 @@ export const ClueModal: React.FC<ClueModalProps> = ({
                     className="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
                   >
                     <Check className="w-3.5 h-3.5" />
-                    <span className="max-w-[90px] truncate">{team.avatar || ''} {team.name}</span>
+                    <span className="max-w-[90px] truncate">
+                      {team.avatar || ''} {team.name}
+                    </span>
                   </button>
                   <button
                     type="button"
