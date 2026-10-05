@@ -68,7 +68,7 @@ services:
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-slate-300">
-                Deploy Anime Jeopardy on your Raspberry Pi, Portainer, or Home Server for local family game nights
+                Deploy Family Jeopardy on your Raspberry Pi, Portainer, or Home Server for local family game nights
               </p>
             </div>
           </div>

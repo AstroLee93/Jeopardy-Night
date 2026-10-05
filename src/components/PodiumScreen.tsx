@@ -22,7 +22,7 @@ export const PodiumScreen: React.FC<PodiumScreenProps> = ({ teams, onRestart }) 
         <div className="text-6xl sm:text-7xl mb-2 animate-bounce">🏆</div>
         
         <h2 className="text-xs sm:text-sm font-bold uppercase tracking-widest text-amber-300 mb-1">
-          Anime Jeopardy Champion
+          Family Jeopardy Champion
         </h2>
         
         <h1 className="font-jeopardy-display text-4xl sm:text-6xl text-[#ffcc00] uppercase tracking-wider drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] mb-2">

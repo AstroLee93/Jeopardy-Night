@@ -88,7 +88,7 @@ export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> =
 
       // Add fallback IDs if missing
       const formatted: JeopardyGameData = {
-        title: data.title || 'Anime Jeopardy',
+        title: data.title || 'Family Jeopardy',
         subtitle: data.subtitle || `${difficulty} Edition`,
         categories: (data.categories || []).map((cat: any, cIdx: number) => ({
           id: cat.id || `ai-cat-${cIdx}`,
@@ -184,7 +184,7 @@ window.ANIME_JEOPARDY_DATA = ${JSON.stringify(board, null, 2)};
                 AI Trivia Question Generator
               </h2>
               <p className="text-xs text-slate-300">
-                Generate fresh, complete Anime Jeopardy boards with automatic model failover
+                Generate fresh, complete Family Jeopardy boards with automatic model failover
               </p>
             </div>
           </div>

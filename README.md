@@ -1,6 +1,6 @@
-# Anime Jeopardy - Family Game Night
+# Family Jeopardy - Family Game Night
 
-A full-featured, family-friendly Anime Jeopardy web game with interactive host controls, an AI-powered trivia generator, authentic Jeopardy sound effects, team buzzer scoring, and customizable anime clue decks.
+A full-featured, family-friendly Jeopardy web game with interactive host controls, an AI-powered trivia generator, authentic Jeopardy sound effects, team buzzer scoring, and customizable clue decks.
 
 ---
 

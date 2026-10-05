@@ -33,7 +33,7 @@ export interface JeopardyGameData {
 }
 
 export const INITIAL_ANIME_DATA: JeopardyGameData = {
-  title: "Anime Jeopardy",
+  title: "Family Jeopardy",
   subtitle: "Family Game Night Edition",
   categories: [
     {

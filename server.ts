@@ -312,7 +312,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Anime Jeopardy server running on http://0.0.0.0:${PORT}`);
+    console.log(`Family Jeopardy server running on http://0.0.0.0:${PORT}`);
   });
 }
 

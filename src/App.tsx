@@ -445,9 +445,9 @@ export default function App() {
         {/* Zone 1: Wordmark & Role Indicator Badge */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-xl">🎌</span>
+            <span className="text-xl">🏆</span>
             <span className="font-jeopardy-display text-xl sm:text-2xl text-[#ffcc00] uppercase tracking-wider drop-shadow-md">
-              Anime Jeopardy
+              Family Jeopardy
             </span>
           </div>
 
@@ -635,9 +635,9 @@ export default function App() {
         {phase === 'SETUP' && (
           <div className="flex-1 flex items-center justify-center py-6">
             <div className="w-full max-w-3xl bg-gradient-to-b from-[#0b15c9]/30 via-[#04097a]/40 to-[#02052c] border-2 sm:border-4 border-[#ffcc00] rounded-2xl p-6 sm:p-10 shadow-2xl text-center backdrop-blur-md">
-              <span className="text-4xl sm:text-5xl block mb-2">🎌</span>
+              <span className="text-4xl sm:text-5xl block mb-2">🏆</span>
               <h1 className="font-jeopardy-display text-3xl sm:text-5xl text-[#ffcc00] uppercase tracking-wider mb-2 drop-shadow-md">
-                Anime Jeopardy
+                Family Jeopardy
               </h1>
               <p className="text-slate-300 text-sm sm:text-base mb-6">
                 {gameData.title} · {gameData.subtitle}
@@ -958,7 +958,7 @@ export default function App() {
         <div className="fixed inset-0 z-50 bg-[#010314]/90 backdrop-blur-md flex items-center justify-center p-4">
           <div className="w-full max-w-2xl bg-gradient-to-b from-[#07116b] to-[#02052c] border-2 sm:border-4 border-[#ffcc00] rounded-2xl p-6 shadow-2xl text-left">
             <h2 className="font-jeopardy-display text-2xl text-[#ffcc00] uppercase mb-3">
-              How Multi-Screen Anime Jeopardy Works
+              How Multi-Screen Family Jeopardy Works
             </h2>
             <div className="space-y-3 text-sm text-slate-300 leading-relaxed max-h-[60vh] overflow-y-auto pr-2">
               <p>
@@ -989,7 +989,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="text-center py-2 text-xs text-slate-500 border-t border-slate-900 bg-[#01031b]">
-        Anime Jeopardy · Multi-Screen TV Display & Host Controller · Raspberry Pi & Docker Offline Ready
+        Family Jeopardy · Multi-Screen TV Display & Host Controller · Raspberry Pi & Docker Offline Ready
       </footer>
     </div>
   );
