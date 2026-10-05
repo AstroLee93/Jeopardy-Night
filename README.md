@@ -39,6 +39,29 @@ npm run build
 npm start
 ```
 
+### Docker & Portainer Deployment (Raspberry Pi / Home Server)
+To run the full-stack app with the AI Trivia Generator and real-time multi-screen sync:
+```bash
+docker compose up -d --build
+```
+Or in Portainer (Stacks -> Add Stack):
+```yaml
+version: '3.8'
+
+services:
+  family-jeopardy:
+    build: .
+    container_name: family-jeopardy
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - GEMINI_API_KEY=AQ.Ab8YourAuthenticationKeyHere
+```
+*Note: Supports both Google's newer, more secure `AQ.Ab8...` Authentication Keys and legacy `AIzaSy...` keys from [Google AI Studio](https://aistudio.google.com/app/apikey).*
+
 ---
 
 ## 🛡️ Host Answer Sheet (Private Host Admin)

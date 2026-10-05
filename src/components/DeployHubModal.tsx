@@ -18,8 +18,35 @@ interface DeployHubModalProps {
 
 export const DeployHubModal: React.FC<DeployHubModalProps> = ({ onClose }) => {
   const [copiedTab, setCopiedTab] = useState<string | null>(null);
+  const [activeDeployMode, setActiveDeployMode] = useState<'fullstack' | 'static'>('fullstack');
 
-  const dockerComposeCode = `version: '3.8'
+  // Full-Stack Node.js (Vite + Express) - Includes Gemini AI Generator + Real-time Multi-Screen Sync
+  const fullstackComposeCode = `version: '3.8'
+
+services:
+  family-jeopardy:
+    build: .
+    container_name: family-jeopardy
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - GEMINI_API_KEY=AQ.Ab8YourAuthenticationKeyHere`;
+
+  const fullstackDockerRunCode = `docker run -d \\
+  --name family-jeopardy \\
+  --restart unless-stopped \\
+  -p 3000:3000 \\
+  -e NODE_ENV=production \\
+  -e PORT=3000 \\
+  -e GEMINI_API_KEY="AQ.Ab8YourAuthenticationKeyHere" \\
+  family-jeopardy`;
+
+  // Static Nginx fallback (Offline only - no AI backend)
+  const staticComposeCode = `version: '3.8'
+
 services:
   anime-jeopardy:
     image: nginx:alpine
@@ -33,15 +60,7 @@ services:
     environment:
       - TZ=America/New_York`;
 
-  const dockerRunCode = `docker run -d \\
-  --name anime-jeopardy \\
-  --restart unless-stopped \\
-  -p 8080:80 \\
-  -v $(pwd)/standalone:/usr/share/nginx/html:ro \\
-  -v $(pwd)/images:/usr/share/nginx/html/images:ro \\
-  nginx:alpine`;
-
-  const piKioskCommand = `DISPLAY=:0 chromium-browser --kiosk --noerrdialogs --disable-infobars --check-for-update-interval=31536000 "http://localhost:8080?role=tv"`;
+  const piKioskCommand = `DISPLAY=:0 chromium-browser --kiosk --noerrdialogs --disable-infobars --check-for-update-interval=31536000 "http://localhost:3000?role=tv"`;
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -82,6 +101,47 @@ services:
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto space-y-5 pr-1 text-slate-200 text-xs sm:text-sm leading-relaxed">
+          {/* Mode Selector Tabs */}
+          <div className="flex items-center gap-2 p-1.5 bg-slate-900 border border-slate-700/80 rounded-xl">
+            <button
+              type="button"
+              onClick={() => setActiveDeployMode('fullstack')}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                activeDeployMode === 'fullstack'
+                  ? 'bg-[#ffcc00] text-[#02052c] shadow'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <Server className="w-4 h-4" />
+              <span>Full-Stack Node.js (AI Trivia Generator + Wi-Fi Sync) [Recommended]</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveDeployMode('static')}
+              className={`py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                activeDeployMode === 'static'
+                  ? 'bg-[#ffcc00] text-[#02052c] shadow'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <WifiOff className="w-4 h-4" />
+              <span>Static Nginx (100% Offline, No AI API)</span>
+            </button>
+          </div>
+
+          {/* Gemini API Key Guidance Callout */}
+          {activeDeployMode === 'fullstack' && (
+            <div className="bg-amber-950/40 border border-[#ffcc00]/50 rounded-xl p-3 text-xs text-amber-200 flex items-start gap-2.5">
+              <ShieldCheck className="w-5 h-5 text-[#ffcc00] shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold block text-white mb-0.5">Google Gemini API Key Support:</span>
+                <p className="text-slate-300 leading-relaxed">
+                  The Node.js server fully supports Google's newest and most secure <code className="text-[#ffcc00] font-mono font-bold">AQ.Ab8...</code> Authentication Keys, as well as legacy <code className="text-slate-300 font-mono">AIzaSy...</code> keys from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="underline text-amber-300 font-bold">Google AI Studio</a>. Set this in Portainer's Environment variables as <code className="text-[#ffcc00] font-mono">GEMINI_API_KEY</code>.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Architecture Card */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="bg-[#02052c] border border-cyan-500/40 rounded-xl p-3.5 flex flex-col justify-between">
@@ -95,7 +155,7 @@ services:
                 </p>
               </div>
               <code className="text-[10px] text-cyan-400 bg-slate-900 px-2 py-1 rounded mt-2 block font-mono">
-                http://&lt;pi-ip&gt;:8080?role=tv
+                {activeDeployMode === 'fullstack' ? 'http://<pi-ip>:3000?role=tv' : 'http://<pi-ip>:8080?role=tv'}
               </code>
             </div>
 
@@ -110,7 +170,7 @@ services:
                 </p>
               </div>
               <code className="text-[10px] text-amber-300 bg-slate-900 px-2 py-1 rounded mt-2 block font-mono">
-                http://&lt;pi-ip&gt;:8080?role=host
+                {activeDeployMode === 'fullstack' ? 'http://<pi-ip>:3000?role=host' : 'http://<pi-ip>:8080?role=host'}
               </code>
             </div>
 
@@ -118,14 +178,16 @@ services:
               <div>
                 <div className="flex items-center gap-2 mb-1.5 text-emerald-300 font-bold">
                   <WifiOff className="w-4 h-4" />
-                  <span>3. Zero Internet Needed</span>
+                  <span>3. Wi-Fi Multi-Screen Sync</span>
                 </div>
                 <p className="text-[11px] text-slate-300">
-                  All sound effects are synthesized via Web Audio API. Standalone build serves pure static HTML/JS via Nginx Alpine.
+                  {activeDeployMode === 'fullstack'
+                    ? 'Includes local Express server with SSE & BroadcastChannel for real-time TV updates across your home network.'
+                    : 'Static Nginx mode operates 100% offline with synthesized audio. BroadcastChannel operates across local tabs.'}
                 </p>
               </div>
               <span className="text-[10px] text-emerald-400 font-semibold mt-2 block">
-                ✓ Ultra lightweight (~15MB image)
+                {activeDeployMode === 'fullstack' ? '✓ Full-Stack Node.js (Port 3000)' : '✓ Ultra lightweight Nginx (Port 8080)'}
               </span>
             </div>
           </div>
@@ -138,7 +200,7 @@ services:
               </span>
               <button
                 type="button"
-                onClick={() => handleCopy(dockerComposeCode, 'compose')}
+                onClick={() => handleCopy(activeDeployMode === 'fullstack' ? fullstackComposeCode : staticComposeCode, 'compose')}
                 className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
               >
                 {copiedTab === 'compose' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -146,7 +208,7 @@ services:
               </button>
             </div>
             <pre className="bg-black/60 border border-slate-800 rounded-lg p-3 text-[11px] text-slate-300 font-mono overflow-x-auto leading-relaxed">
-              {dockerComposeCode}
+              {activeDeployMode === 'fullstack' ? fullstackComposeCode : staticComposeCode}
             </pre>
           </div>
 
@@ -154,11 +216,11 @@ services:
           <div className="bg-[#02052c] border border-slate-700 rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="font-jeopardy-display text-sm sm:text-base text-[#ffcc00] uppercase tracking-wider flex items-center gap-1.5">
-                <Server className="w-4 h-4" /> One-Line Docker Run CLI
+                <Server className="w-4 h-4" /> Docker CLI Command
               </span>
               <button
                 type="button"
-                onClick={() => handleCopy(dockerRunCode, 'dockerrun')}
+                onClick={() => handleCopy(activeDeployMode === 'fullstack' ? fullstackDockerRunCode : staticComposeCode, 'dockerrun')}
                 className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
               >
                 {copiedTab === 'dockerrun' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -166,7 +228,7 @@ services:
               </button>
             </div>
             <pre className="bg-black/60 border border-slate-800 rounded-lg p-3 text-[11px] text-emerald-300 font-mono overflow-x-auto leading-relaxed">
-              {dockerRunCode}
+              {activeDeployMode === 'fullstack' ? fullstackDockerRunCode : staticComposeCode}
             </pre>
           </div>
 

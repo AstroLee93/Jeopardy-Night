@@ -58,9 +58,13 @@ app.post('/api/sync/action', (req, res) => {
 
 // Helper to get GoogleGenAI client
 function getGenAI() {
-  const apiKey = process.env.GEMINI_API_KEY;
+  let apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) {
     return null;
+  }
+  // Strip accidental outer quotes if added in Docker/Portainer env inputs (e.g. "AQ.Ab8..." or 'AQ.Ab8...')
+  if ((apiKey.startsWith('"') && apiKey.endsWith('"')) || (apiKey.startsWith("'") && apiKey.endsWith("'"))) {
+    apiKey = apiKey.slice(1, -1).trim();
   }
   return new GoogleGenAI({
     apiKey,
