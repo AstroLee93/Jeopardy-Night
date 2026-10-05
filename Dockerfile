@@ -26,7 +26,7 @@ COPY --from=builder /app/images ./images
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 
 ENV NODE_ENV=production
-ENV PORT=3000
+ENV PORT=3002
 
 EXPOSE 3000
 
