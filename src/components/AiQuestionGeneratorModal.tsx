@@ -43,15 +43,13 @@ export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> =
   const [selectedPreviewCat, setSelectedPreviewCat] = useState<number>(0);
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
 
-  // Clean error text from raw JSON
+  // Clean error text from raw JSON or server responses
   const formatError = (raw: string) => {
-    if (raw.includes('503') || raw.includes('high demand') || raw.includes('UNAVAILABLE')) {
-      return 'Google Gemini is currently experiencing a temporary traffic spike. You can retry in a moment, or click "Load Instant Themed Board" below.';
-    }
     try {
       const parsed = JSON.parse(raw);
-      if (parsed.error && parsed.error.message) {
-        return parsed.error.message;
+      if (parsed.error) {
+        if (typeof parsed.error === 'string') return parsed.error;
+        if (parsed.error.message) return parsed.error.message;
       }
     } catch {
       // not JSON
@@ -63,6 +61,8 @@ export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> =
     setIsGenerating(true);
     setErrorMessage(null);
     setNoticeMessage(null);
+    // Ensure previous board is cleared so failed generation never displays any default or stale questions
+    setGeneratedBoard(null);
 
     const presetObj = THEME_PRESETS.find(p => p.id === selectedPreset);
     const themeToSend = customTheme.trim() || (presetObj ? `${presetObj.label} (${presetObj.desc})` : 'Popular Anime');
@@ -77,9 +77,28 @@ export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> =
         })
       });
 
-      const data = await res.json();
-      if (!res.ok && data.error) {
-        throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
+      const contentType = res.headers.get('content-type') || '';
+      let data: any = null;
+
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const rawText = await res.text();
+        if (!res.ok) {
+          if (res.status === 504 || rawText.includes('504 Gateway') || rawText.includes('Gateway Time-out')) {
+            throw new Error('AI generation timed out (HTTP 504 Gateway Timeout). The model took longer than the server proxy allowed to draft all 30 clues. Please try again with a concise topic.');
+          }
+          if (res.status === 502 || rawText.includes('502 Bad Gateway') || rawText.includes('Bad Gateway')) {
+            throw new Error('Upstream AI service error (HTTP 502 Bad Gateway). The proxy could not reach the generation service.');
+          }
+          throw new Error(`Server returned HTTP ${res.status}: ${res.statusText || 'Non-JSON response'}.`);
+        }
+        throw new Error('Server returned an unexpected non-JSON response.');
+      }
+
+      if (!res.ok) {
+        const errorMsg = data?.error || (typeof data === 'string' ? data : `AI question generation failed (HTTP ${res.status}).`);
+        throw new Error(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg));
       }
 
       if (data.notice) {
@@ -117,6 +136,8 @@ export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> =
     } catch (err: unknown) {
       const msg = (err as Error)?.message || 'Generation failed.';
       setErrorMessage(formatError(msg));
+      // Strictly ensure no board or default questions are shown
+      setGeneratedBoard(null);
     } finally {
       setIsGenerating(false);
     }
@@ -291,29 +312,34 @@ window.ANIME_JEOPARDY_DATA = ${JSON.stringify(board, null, 2)};
             </button>
           </div>
 
-          {/* Error Message with clean handling */}
+          {/* Error Explanation Card */}
           {errorMessage && (
-            <div className="p-3.5 bg-red-950/80 border border-red-800 text-red-200 rounded-xl text-xs flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <span className="font-bold block mb-1">Temporary Gemini Traffic Notice</span>
-                <p className="text-slate-300">{errorMessage}</p>
-                <div className="mt-2 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={handleGenerateBoard}
-                    className="px-3 py-1 bg-red-800 hover:bg-red-700 text-white rounded text-xs font-semibold cursor-pointer"
-                  >
-                    Retry Now
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleLoadInstantBoard}
-                    className="px-3 py-1 bg-amber-500/20 text-[#ffcc00] border border-[#ffcc00]/40 rounded text-xs font-semibold cursor-pointer"
-                  >
-                    Load Instant Board
-                  </button>
+            <div className="p-4 bg-red-950/80 border-2 border-red-800 text-red-200 rounded-xl text-xs space-y-2.5 shadow-lg">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <span className="font-bold text-sm text-red-200 block mb-1">
+                    AI Question Generation Could Not Complete
+                  </span>
+                  <div className="p-2.5 bg-red-900/40 border border-red-800/60 rounded-lg text-xs text-red-100 font-mono leading-relaxed break-words">
+                    {errorMessage}
+                  </div>
+                  <p className="text-[11px] text-slate-300 mt-2">
+                    Fresh trivia questions could not be generated. Default/fallback questions have not been loaded.
+                  </p>
                 </div>
+              </div>
+              <div className="pt-2 border-t border-red-900/60 flex items-center justify-between gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleGenerateBoard}
+                  className="px-3.5 py-1.5 bg-red-800 hover:bg-red-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" /> Retry Question Generation
+                </button>
+                <span className="text-[11px] text-slate-400">
+                  Tip: Check server API key configuration or try a different topic.
+                </span>
               </div>
             </div>
           )}

@@ -133,7 +133,7 @@ export const ClueModal: React.FC<ClueModalProps> = ({
         case 'CLOSE_CLUE':
           soundFx.stopThinkMusic();
           soundFx.stopSpeaking();
-          onClose();
+          // Active clue state is cleared by App.tsx, which unmounts this modal cleanly
           break;
       }
     });
@@ -407,11 +407,11 @@ export const ClueModal: React.FC<ClueModalProps> = ({
     soundFx.stopSpeaking();
     setIsTimerRunning(false);
     setTimerEndTime(null);
+    // onAwardScore in App.tsx updates teams and broadcasts AWARD_SCORE once
     onAwardScore(teamId, clue.value);
     soundFx.playCorrect();
     setIsAnswerRevealed(true);
 
-    gameSync.broadcast({ type: 'AWARD_SCORE', teamId, delta: clue.value });
     gameSync.broadcast({ type: 'REVEAL_ANSWER_ON_TV' });
     gameSync.broadcast({
       type: 'SYNC_TIMER',
@@ -424,19 +424,19 @@ export const ClueModal: React.FC<ClueModalProps> = ({
   };
 
   const handleWrong = (teamId: number) => {
+    // onAwardScore in App.tsx updates teams and broadcasts AWARD_SCORE once
     onAwardScore(teamId, -clue.value);
     soundFx.playWrong();
     setLockedOutTeamIds((prev) => new Set(prev).add(teamId));
     setBuzzedTeamId(null);
 
-    gameSync.broadcast({ type: 'AWARD_SCORE', teamId, delta: -clue.value });
     gameSync.broadcast({ type: 'CLEAR_BUZZER' });
   };
 
   const handleHostCloseClue = () => {
     soundFx.stopThinkMusic();
     soundFx.stopSpeaking();
-    gameSync.broadcast({ type: 'CLOSE_CLUE' });
+    // onClose triggers handleCloseClue in App.tsx, which updates used clues and broadcasts CLOSE_CLUE
     onClose();
   };
 

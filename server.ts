@@ -94,11 +94,10 @@ app.post('/api/ai/generate-board', async (req, res) => {
 
   const ai = getGenAI();
   if (!ai) {
-    console.warn('GEMINI_API_KEY missing. Delivering curated board fallback.');
-    return res.json({
-      ...getCuratedFallbackBoard(theme, difficulty),
-      source: 'offline-library',
-      notice: 'API key not configured; loaded offline anime trivia board.'
+    console.warn('GEMINI_API_KEY missing. Cannot generate AI trivia board.');
+    return res.status(400).json({
+      error: 'GEMINI_API_KEY is not configured in the server environment. Fresh AI questions cannot be generated without an active Gemini API key.',
+      reason: 'missing_api_key'
     });
   }
 
@@ -162,8 +161,9 @@ Strict Rules:
     required: ['title', 'categories', 'finalJeopardy'],
   };
 
-  // Models to attempt in sequence (Primary -> High-throughput fallback)
-  const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+  // Models to attempt in sequence: gemini-3.1-flash-lite (Ultra-fast, high capacity) -> gemini-3.8-flash (Standard model)
+  const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash'];
+  let lastErrorMsg = '';
 
   for (const model of candidateModels) {
     try {
@@ -188,31 +188,31 @@ Strict Rules:
     } catch (err: unknown) {
       const errMsg = (err as Error)?.message || String(err);
       console.warn(`Model ${model} attempt failed: ${errMsg}`);
+      lastErrorMsg = errMsg;
 
-      const isHighDemandOrRateLimit = 
-        errMsg.includes('503') || 
-        errMsg.includes('high demand') || 
-        errMsg.includes('UNAVAILABLE') || 
-        errMsg.includes('429') ||
-        errMsg.includes('RESOURCE_EXHAUSTED');
-
-      if (!isHighDemandOrRateLimit && model === candidateModels[candidateModels.length - 1]) {
-        // Not a 503 capacity issue and all models tried
-        break;
-      }
       // Wait 750ms before next candidate model
       await new Promise(resolve => setTimeout(resolve, 750));
     }
   }
 
-  // Graceful Fallback if all Google API models report 503 high demand:
-  // Deliver rich themed board so family game night NEVER fails!
-  console.log('All live models under peak demand. Delivering curated board fallback.');
-  const fallbackBoard = getCuratedFallbackBoard(theme, difficulty);
-  return res.json({
-    ...fallbackBoard,
-    source: 'curated-fallback',
-    notice: 'Gemini servers are currently experiencing temporary high traffic. Loaded complete anime trivia board.'
+  // Do not default to instant board or fallback questions; return descriptive explanation of why it failed
+  let detailedExplanation = 'Unable to generate fresh questions with Gemini AI.';
+  if (lastErrorMsg.includes('429') || lastErrorMsg.includes('RESOURCE_EXHAUSTED')) {
+    detailedExplanation = 'Gemini API rate limit or quota exceeded (429 Resource Exhausted). The API received too many requests in a short duration.';
+  } else if (lastErrorMsg.includes('503') || lastErrorMsg.includes('UNAVAILABLE') || lastErrorMsg.includes('high demand')) {
+    detailedExplanation = 'Google Gemini servers are currently experiencing temporary high demand (503 Service Unavailable). Please try again shortly.';
+  } else if (lastErrorMsg.includes('403') || lastErrorMsg.includes('401') || lastErrorMsg.includes('API_KEY_INVALID') || lastErrorMsg.includes('API key not valid')) {
+    detailedExplanation = 'Gemini API authentication failed: the provided API key is invalid, inactive, or unauthorized.';
+  } else if (lastErrorMsg.includes('SAFETY') || lastErrorMsg.includes('blocked')) {
+    detailedExplanation = 'The requested theme was blocked by Gemini content safety filters.';
+  } else if (lastErrorMsg) {
+    detailedExplanation = `AI question generation failed: ${lastErrorMsg}`;
+  }
+
+  return res.status(502).json({
+    error: detailedExplanation,
+    rawError: lastErrorMsg,
+    attemptedModels: candidateModels
   });
 });
 
@@ -255,7 +255,10 @@ Clues must be written in Jeopardy clue format, and answers must be phrased as qu
     required: ['title', 'clues'],
   };
 
-  const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+  // Models to attempt in sequence: gemini-3.1-flash-lite -> gemini-3.8-flash
+  const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash'];
+
+  let lastCategoryError = '';
 
   for (const model of candidateModels) {
     try {
@@ -273,22 +276,17 @@ Clues must be written in Jeopardy clue format, and answers must be phrased as qu
         return res.json(JSON.parse(text));
       }
     } catch (err: unknown) {
-      console.warn(`Category generation with ${model} failed, trying next.`);
+      const errMsg = (err as Error)?.message || String(err);
+      console.warn(`Category generation with ${model} failed: ${errMsg}`);
+      lastCategoryError = errMsg;
       await new Promise(resolve => setTimeout(resolve, 500));
     }
   }
 
-  // Fallback single category
-  return res.json({
-    title: topic ? topic.toUpperCase() : 'ANIME LEGENDS',
-    description: 'Iconic heroes and unforgettable anime moments',
-    clues: [
-      { value: 200, clue: 'This rubber-powered captain dreams of becoming King of the Pirates.', answer: 'Who is Monkey D. Luffy?', isDailyDouble: false },
-      { value: 400, clue: 'Naruto Uzumaki’s signature spinning sphere of concentrated chakra.', answer: 'What is the Rasengan?', isDailyDouble: false },
-      { value: 600, clue: 'Goku first awakened Super Saiyan while fighting Frieza on this green-sky alien world.', answer: 'What is Planet Namek?', isDailyDouble: false },
-      { value: 800, clue: 'This Survey Corps captain is known as Humanity’s Strongest Soldier.', answer: 'Who is Levi Ackerman?', isDailyDouble: true },
-      { value: 1000, clue: 'In Jujutsu Kaisen, Satoru Gojo manipulates space at an atomic level with this technique.', answer: 'What is Limitless?', isDailyDouble: false },
-    ]
+  // Do not default to hardcoded clues; return explanation
+  return res.status(502).json({
+    error: `Could not generate category "${topic || 'Anime'}": ${lastCategoryError || 'Model returned empty response.'}`,
+    rawError: lastCategoryError
   });
 });
 

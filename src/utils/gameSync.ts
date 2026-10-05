@@ -94,6 +94,10 @@ class GameSyncManager {
   private listeners: Array<(action: SyncAction) => void> = [];
   private sseSource: EventSource | null = null;
   public currentRole: ScreenRole = 'host';
+  private clientId: string = `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 9)}`;
+  private isDispatching: boolean = false;
+  private pendingActions: SyncAction[] = [];
+  private seenActionIds: Set<string> = new Set();
 
   constructor() {
     // Check URL query param first: ?role=tv or ?role=host
@@ -115,7 +119,12 @@ class GameSyncManager {
           this.channel = new BroadcastChannel('anime_jeopardy_multiscreen_sync');
           this.channel.onmessage = (event) => {
             if (event.data) {
-              this.notifyListeners(event.data as SyncAction);
+              const data = event.data as any;
+              // Ignore actions originating from this client tab
+              if (data._senderId === this.clientId) {
+                return;
+              }
+              this.notifyListeners(data as SyncAction);
             }
           };
         }
@@ -142,7 +151,7 @@ class GameSyncManager {
     return this.currentRole;
   }
 
-  // Subscribe to actions sent from other screen
+  // Subscribe to actions sent from other screens
   public subscribe(listener: (action: SyncAction) => void): () => void {
     this.listeners.push(listener);
     return () => {
@@ -152,36 +161,86 @@ class GameSyncManager {
 
   // Broadcast action to all other tabs and network devices
   public broadcast(action: SyncAction) {
-    // 1. Broadcast locally
-    if (this.channel) {
-      try {
-        this.channel.postMessage(action);
-      } catch {}
+    const actionId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const envelope = {
+      ...action,
+      _senderId: this.clientId,
+      _actionId: actionId,
+      _timestamp: Date.now()
+    };
+
+    // Track own action ID so echoes are discarded
+    this.seenActionIds.add(actionId);
+    if (this.seenActionIds.size > 200) {
+      const first = this.seenActionIds.values().next().value;
+      if (first) this.seenActionIds.delete(first);
     }
 
-    // 2. Also notify local listeners in current window
-    this.notifyListeners(action);
+    // 1. Broadcast to other tabs in this browser via BroadcastChannel
+    if (this.channel) {
+      try {
+        // Deep clone safe plain JSON to guarantee no circular references or DOM nodes reach postMessage
+        const safePayload = JSON.parse(JSON.stringify(envelope));
+        this.channel.postMessage(safePayload);
+      } catch (err) {
+        console.warn('BroadcastChannel error:', err);
+      }
+    }
 
-    // 3. Post to server for cross-device Wi-Fi synchronization
+    // 2. Post to server for cross-device Wi-Fi synchronization
     if (typeof window !== 'undefined') {
-      fetch('/api/sync/action', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(action)
-      }).catch(() => {
-        // Offline or standalone static fallback
-      });
+      try {
+        const safePayload = JSON.parse(JSON.stringify(envelope));
+        fetch('/api/sync/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(safePayload)
+        }).catch(() => {
+          // Offline or standalone static fallback
+        });
+      } catch {}
     }
   }
 
   private notifyListeners(action: SyncAction) {
-    this.listeners.forEach((listener) => {
-      try {
-        listener(action);
-      } catch (err) {
-        console.error('Error in gameSync listener:', err);
+    const actionWithMeta = action as any;
+    // Deduplication check: ignore if we already handled this exact action ID
+    if (actionWithMeta._actionId) {
+      if (this.seenActionIds.has(actionWithMeta._actionId)) {
+        return;
       }
-    });
+      this.seenActionIds.add(actionWithMeta._actionId);
+      if (this.seenActionIds.size > 200) {
+        const first = this.seenActionIds.values().next().value;
+        if (first) this.seenActionIds.delete(first);
+      }
+    }
+
+    // Re-entrancy & stack overflow guard: queue action if currently dispatching
+    if (this.isDispatching) {
+      this.pendingActions.push(action);
+      return;
+    }
+
+    this.isDispatching = true;
+    try {
+      this.listeners.forEach((listener) => {
+        try {
+          listener(action);
+        } catch (err) {
+          console.error('Error in gameSync listener:', err);
+        }
+      });
+    } finally {
+      this.isDispatching = false;
+      // Drain any queued actions asynchronously to guarantee a fresh call stack
+      if (this.pendingActions.length > 0) {
+        const nextAction = this.pendingActions.shift();
+        if (nextAction) {
+          setTimeout(() => this.notifyListeners(nextAction), 0);
+        }
+      }
+    }
   }
 
   private initServerEvents() {
@@ -192,6 +251,10 @@ class GameSyncManager {
       this.sseSource.onmessage = (event) => {
         try {
           const action = JSON.parse(event.data);
+          // If this event was sent by this exact tab/client, ignore it
+          if (action._senderId === this.clientId) {
+            return;
+          }
           this.notifyListeners(action);
         } catch {}
       };
