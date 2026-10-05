@@ -17,7 +17,7 @@ WORKDIR /app
 
 COPY package*.json ./
 # Install production and runner dependencies
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server.ts ./server.ts
