@@ -1,6 +1,6 @@
 # Multi-stage Dockerfile for Family Jeopardy on Raspberry Pi (ARM64 / ARMv7 / AMD64)
 # Stage 1: Build the Vite production frontend
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -11,7 +11,7 @@ COPY . .
 RUN npm run build
 
 # Stage 2: Production runtime with Node.js Express server for AI & Wi-Fi Sync
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 
@@ -30,4 +30,4 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-CMD ["npx", "tsx", "server.ts"]
+CMD ["npm", "start"]

@@ -91,6 +91,9 @@ export const AiQuestionGeneratorModal: React.FC<AiQuestionGeneratorModalProps> =
           if (res.status === 502 || rawText.includes('502 Bad Gateway') || rawText.includes('Bad Gateway')) {
             throw new Error('Upstream AI service error (HTTP 502 Bad Gateway). The proxy could not reach the generation service.');
           }
+          if (res.status === 404) {
+            throw new Error('Backend route not found (HTTP 404). The app is being served by a static web server (such as Nginx on port 8080 or a static host) instead of the Node.js Express server on port 3000.');
+          }
           throw new Error(`Server returned HTTP ${res.status}: ${res.statusText || 'Non-JSON response'}.`);
         }
         throw new Error('Server returned an unexpected non-JSON response.');

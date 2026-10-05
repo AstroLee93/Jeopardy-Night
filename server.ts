@@ -2,13 +2,16 @@ import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
-import { CURATED_BOARDS } from './src/data/curatedAnimeBoards';
 
 dotenv.config();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '10mb' }));
 
@@ -74,20 +77,6 @@ function getGenAI() {
       },
     },
   });
-}
-
-// Fallback board selector based on prompt keywords
-function getCuratedFallbackBoard(theme = '', difficulty = 'Family Friendly') {
-  const lower = theme.toLowerCase();
-  if (lower.includes('ghibli') || lower.includes('totoro') || lower.includes('miyazaki')) {
-    return CURATED_BOARDS['ghibli'];
-  }
-  // Default to rich All-Stars board
-  const board = JSON.parse(JSON.stringify(CURATED_BOARDS['all-stars']));
-  if (theme) {
-    board.subtitle = `${theme} · ${difficulty}`;
-  }
-  return board;
 }
 
 // =============================================================================
@@ -313,7 +302,7 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  app.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`Family Jeopardy server running on http://0.0.0.0:${PORT}`);
   });
 }
