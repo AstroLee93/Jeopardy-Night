@@ -273,7 +273,7 @@ async def reset_buzzer():
 
 
 # Serve static built frontend if 'dist' directory exists (Single-container deployment)
-dist_dir = Path(__file__).parent.parent / "dist"
+dist_dir = Path(__file__).parent / "dist"
 if dist_dir.exists():
     app.mount("/", StaticFiles(directory=str(dist_dir), html=True), name="static")
 
