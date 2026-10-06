@@ -105,6 +105,84 @@ class SoundSynthesizer {
     this.playTripleBuzz();
   }
 
+  // ===========================================================================
+  // Family Feud Sound Effects (100% Native Web Audio API)
+  // ===========================================================================
+
+  // Iconic Family Feud Low Electric Strike Buzz ("EH-ERRNT!")
+  public playFeudStrike() {
+    if (!this.enabled || this.volume <= 0) return;
+    this.stopThinkMusic();
+    const ctx = this.initCtx();
+    if (!ctx) return;
+
+    try {
+      // Dual detuned low harsh square oscillators
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc1.type = 'sawtooth';
+      osc1.frequency.setValueAtTime(138.59, ctx.currentTime); // C#3
+
+      osc2.type = 'square';
+      osc2.frequency.setValueAtTime(130.81, ctx.currentTime); // C3 (Dissonant minor 2nd beat)
+
+      const masterVol = 0.5 * this.volume;
+      gain.gain.setValueAtTime(masterVol, ctx.currentTime);
+      gain.gain.setValueAtTime(masterVol, ctx.currentTime + 0.32);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.45);
+
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc1.start();
+      osc2.start();
+      osc1.stop(ctx.currentTime + 0.45);
+      osc2.stop(ctx.currentTime + 0.45);
+    } catch {
+      // Audio fallback
+    }
+  }
+
+  // Iconic Family Feud Answer Reveal ("CLACK - DING!")
+  public playFeudReveal() {
+    if (!this.enabled || this.volume <= 0) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+
+    try {
+      // 1. Mechanical slat click
+      this.playTone(320, 0.04, 'triangle', 0.25);
+
+      // 2. Bright crystal game-show bell chime ("DING!")
+      setTimeout(() => {
+        this.playTone(1480, 0.4, 'triangle', 0.45); // F#6
+        this.playTone(2217, 0.35, 'sine', 0.35);    // C#7
+      }, 35);
+    } catch {
+      // Audio fallback
+    }
+  }
+
+  // Fast Money 20s Countdown Clock Tick
+  public playFeudTick() {
+    if (!this.enabled || this.volume <= 0) return;
+    this.playTone(1200, 0.03, 'sine', 0.2);
+  }
+
+  // Round Won / Family Feud Win Fanfare
+  public playFeudWin() {
+    if (!this.enabled || this.volume <= 0) return;
+    const chords = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+    chords.forEach((freq, idx) => {
+      setTimeout(() => {
+        this.playTone(freq, 0.4, 'triangle', 0.35);
+      }, idx * 75);
+    });
+  }
+
   // Authentic High-Impact Daily Double Laser Fanfare
   // Triggers distinct cinematic arpeggios + punchy TV speaker bass impact
   public playDailyDouble(isTvDisplay = true) {

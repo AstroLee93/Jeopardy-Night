@@ -229,6 +229,54 @@ Output clean JSON with title, description, and clues array.
     raise HTTPException(status_code=502, detail="Category generation failed.")
 
 
+class GenerateFeudRequest(BaseModel):
+    topic: Optional[str] = "Popular Anime & Manga"
+    customInstructions: Optional[str] = None
+
+
+@app.post("/api/ai/generate-feud")
+async def generate_feud(req: GenerateFeudRequest):
+    client = get_genai_client()
+    if not client:
+        raise HTTPException(status_code=400, detail="GEMINI_API_KEY is not configured.")
+
+    prompt = f"""You are an elite television game-show writer for Family Feud.
+Create a complete, authentic 5-round Family Feud survey game plus a 5-question Fast Money bonus round on the theme: "{req.topic}".
+{f"Special Instructions: {req.customInstructions}" if req.customInstructions else ""}
+
+Strict Rules:
+1. Exactly 5 Main Rounds:
+   - Round 1 (1x Multiplier): 6 ranked answers.
+   - Round 2 (1x Multiplier): 6 ranked answers.
+   - Round 3 (2x Multiplier - DOUBLE POINTS): 5 or 6 ranked answers.
+   - Round 4 (2x Multiplier - DOUBLE POINTS): 5 or 6 ranked answers.
+   - Round 5 (3x Multiplier - TRIPLE POINTS): 5 or 6 ranked answers.
+   - Questions must be phrased in classic survey style: "We asked 100 people: Name..."
+   - Points for each answer must be positive integers in descending order, summing up to approximately 95-100 total points per round.
+2. Fast Money Bonus:
+   - Exactly 5 rapid-fire questions.
+   - Each question has top 3 to 5 survey answers with points summing to ~100.
+3. Output valid JSON with title, subtitle, theme, rounds array, and fastMoney array.
+"""
+
+    candidate_models = ["gemini-2.5-flash", "gemini-2.0-flash"]
+    for model in candidate_models:
+        try:
+            response = client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=types.GenerateContentConfig(response_mime_type="application/json"),
+            )
+            if response.text:
+                data = json.loads(response.text.strip())
+                data["id"] = f"feud-py-{int(asyncio.get_event_loop().time() * 1000)}"
+                return data
+        except Exception as e:
+            print(f"[Gemini Python Feud] Model {model} failed: {e}")
+
+    raise HTTPException(status_code=502, detail="Family Feud generation failed.")
+
+
 @app.get("/api/images/lookup")
 async def lookup_image(query: str = Query(..., description="Entity topic name")):
     result = await wikidata_service.get_image_for_topic(query)

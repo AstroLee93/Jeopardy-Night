@@ -18,6 +18,7 @@ import { HostSheetModal } from './components/HostSheetModal';
 import { ScoreEditorModal } from './components/ScoreEditorModal';
 import { GameSettingsModal } from './components/GameSettingsModal';
 import { RoleDesignationModal } from './components/RoleDesignationModal';
+import { FamilyFeudBoard } from './components/FamilyFeudBoard';
 import { soundFx } from './utils/audioSynth';
 import { gameSync, ScreenRole } from './utils/gameSync';
 import { 
@@ -37,7 +38,8 @@ import {
   Edit2,
   Tv,
   Crown,
-  Monitor
+  Monitor,
+  Flame
 } from 'lucide-react';
 
 const DEFAULT_TEAMS_INFO = [
@@ -57,6 +59,7 @@ export default function App() {
   const [role, setRole] = useState<ScreenRole>(gameSync.getRole());
   const [gameData, setGameData] = useState<JeopardyGameData>(INITIAL_ANIME_DATA);
   const [phase, setPhase] = useState<GamePhase>('SETUP');
+  const [gameMode, setGameMode] = useState<'JEOPARDY' | 'FEUD'>('JEOPARDY');
   
   // Setup configuration
   const [teamCount, setTeamCount] = useState<number>(3);
@@ -102,10 +105,24 @@ export default function App() {
     gameSync.setRole(newRole);
   };
 
+  const handleSwitchGameMode = (mode: 'JEOPARDY' | 'FEUD') => {
+    setGameMode(mode);
+    gameSync.broadcast({ type: 'SET_GAME_MODE', mode });
+    if (mode === 'FEUD') {
+      soundFx.playFeudReveal();
+    } else {
+      soundFx.playCluePing();
+    }
+  };
+
   // Subscribe to Multi-Screen Cross-Device Events
   useEffect(() => {
     const unsubscribe = gameSync.subscribe((action) => {
       switch (action.type) {
+        case 'SET_GAME_MODE':
+          if (action.mode) setGameMode(action.mode);
+          break;
+
         case 'START_GAME':
           if (action.teams) setTeams(action.teams);
           if (action.gameData) setGameData(action.gameData);
@@ -466,6 +483,33 @@ export default function App() {
             <span>{role === 'tv' ? '📺 TV Display Mode' : '👑 Host Controller'}</span>
             <span className="text-[10px] text-slate-400 font-normal">▼ Switch</span>
           </button>
+
+          {/* Game Mode Switcher: Jeopardy vs Family Feud */}
+          <div className="flex items-center bg-black/60 p-1 rounded-xl border border-amber-500/50 shadow-inner">
+            <button
+              type="button"
+              onClick={() => handleSwitchGameMode('JEOPARDY')}
+              className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                gameMode === 'JEOPARDY'
+                  ? 'bg-[#ffcc00] text-[#02052c] shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>🌟 Jeopardy</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSwitchGameMode('FEUD')}
+              className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                gameMode === 'FEUD'
+                  ? 'bg-gradient-to-r from-red-600 to-amber-500 text-white shadow ring-1 ring-white/50'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Flame className="w-3.5 h-3.5 text-amber-300" />
+              <span>Family Feud</span>
+            </button>
+          </div>
         </div>
 
         {/* Zone 2: Navigation Links (Contextual to Role) */}
@@ -631,8 +675,32 @@ export default function App() {
           MAIN BODY CONTAINER
           ===================================================================== */}
       <main className="flex-1 flex flex-col p-2 sm:p-5 max-w-7xl w-full mx-auto justify-center">
-        {/* PHASE 1: SETUP SCREEN */}
-        {phase === 'SETUP' && (
+        {gameMode === 'FEUD' ? (
+          <FamilyFeudBoard
+            teams={
+              teams.length >= 2
+                ? teams
+                : Array.from({ length: 2 }).map((_, idx) => {
+                    const info = DEFAULT_TEAMS_INFO[idx % DEFAULT_TEAMS_INFO.length];
+                    return {
+                      id: idx + 1,
+                      name: teamNames[idx] || (idx === 0 ? 'Team Straw Hat' : 'Team Z-Fighters'),
+                      score: 0,
+                      color: { bg: info.bg, border: info.border },
+                      avatar: info.avatar,
+                    };
+                  })
+            }
+            role={role}
+            onUpdateTeams={(updated) => {
+              setTeams(updated);
+            }}
+            onSwitchToJeopardy={() => handleSwitchGameMode('JEOPARDY')}
+          />
+        ) : (
+          <>
+            {/* PHASE 1: SETUP SCREEN */}
+            {phase === 'SETUP' && (
           <div className="flex-1 flex items-center justify-center py-6">
             <div className="w-full max-w-3xl bg-gradient-to-b from-[#0b15c9]/30 via-[#04097a]/40 to-[#02052c] border-2 sm:border-4 border-[#ffcc00] rounded-2xl p-6 sm:p-10 shadow-2xl text-center backdrop-blur-md">
               <span className="text-4xl sm:text-5xl block mb-2">🏆</span>
@@ -857,6 +925,8 @@ export default function App() {
               gameSync.broadcast({ type: 'RESET_GAME' });
             }}
           />
+        )}
+          </>
         )}
       </main>
 

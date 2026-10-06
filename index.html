@@ -9,6 +9,17 @@
     <meta property="og:description" content="A family game night Jeopardy game with host answer controls, AI question generator, team buzzer sound effects, and customizable trivia." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      // Suppress benign Vite development WebSocket HMR errors in proxy/iframe environments
+      window.addEventListener('unhandledrejection', function(event) {
+        if (event && event.reason && (
+          String(event.reason).includes('WebSocket') ||
+          String(event.reason.message || '').includes('WebSocket')
+        )) {
+          event.preventDefault();
+        }
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>

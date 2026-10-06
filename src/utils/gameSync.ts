@@ -44,6 +44,7 @@ export interface SyncedGameState {
 
 export type SyncAction =
   | { type: 'SET_ROLE'; role: ScreenRole }
+  | { type: 'SET_GAME_MODE'; mode: 'JEOPARDY' | 'FEUD' }
   | { type: 'START_GAME'; teams: any[]; gameData?: any }
   | { type: 'OPEN_CLUE'; catIndex: number; clueIndex: number; clue: any; categoryTitle: string }
   | {
@@ -87,6 +88,15 @@ export type SyncAction =
   | { type: 'GO_TO_FINAL_JEOPARDY' }
   | { type: 'FINISH_GAME'; finalTeams: any[] }
   | { type: 'RESET_GAME' }
+  | { type: 'FEUD_SET_ROUND'; roundIdx: number }
+  | { type: 'FEUD_TOGGLE_ANSWER'; answerId: string; revealed: boolean; points: number; newBank: number }
+  | { type: 'FEUD_REVEAL_ALL'; allIds: string[]; newBank: number }
+  | { type: 'FEUD_STRIKE'; strikes: number }
+  | { type: 'FEUD_RESET_STRIKES' }
+  | { type: 'FEUD_SET_PLAYING_TEAM'; teamIdx: number }
+  | { type: 'FEUD_AWARD_BANK'; teamIndex: 0 | 1; updatedTeams: any[] }
+  | { type: 'FEUD_APPLY_GAME'; game: any }
+  | { type: 'FEUD_SYNC_STATE'; state: any }
   | { type: 'SYNC_FULL_STATE'; state: SyncedGameState };
 
 class GameSyncManager {

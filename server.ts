@@ -495,6 +495,128 @@ For example: if the answer is a show/creator/character, provide an iconic item (
 });
 
 // =============================================================================
+// API: Generate Family Feud Survey Board (5 Survey Rounds + Fast Money)
+// =============================================================================
+app.post('/api/ai/generate-feud', async (req, res) => {
+  const { topic = 'Popular Anime & Manga', customInstructions } = req.body;
+
+  const ai = getGenAI();
+  if (!ai) {
+    return res.status(400).json({
+      error: 'GEMINI_API_KEY is not configured in the server environment.',
+      reason: 'missing_api_key'
+    });
+  }
+
+  const prompt = `You are an elite television game-show writer for Family Feud.
+Create a complete, authentic 5-round Family Feud survey game plus a 5-question Fast Money bonus round on the theme: "${topic}".
+${customInstructions ? `Special Instructions: ${customInstructions}` : ''}
+
+Strict Rules:
+1. Exactly 5 Main Rounds:
+   - Round 1 (1x Multiplier): 6 ranked answers.
+   - Round 2 (1x Multiplier): 6 ranked answers.
+   - Round 3 (2x Multiplier - DOUBLE POINTS): 5 or 6 ranked answers.
+   - Round 4 (2x Multiplier - DOUBLE POINTS): 5 or 6 ranked answers.
+   - Round 5 (3x Multiplier - TRIPLE POINTS): 5 or 6 ranked answers.
+   - Questions must be phrased in classic survey style: "We asked 100 people: Name..."
+   - Points for each answer must be positive integers in descending order, summing up to approximately 95-100 total points per round.
+2. Fast Money Bonus:
+   - Exactly 5 rapid-fire questions.
+   - Each question has top 3 to 5 survey answers with points summing to ~100.
+3. Keep answers clean, punchy, and instantly recognizable on television.`;
+
+  const schema = {
+    type: Type.OBJECT,
+    properties: {
+      title: { type: Type.STRING },
+      subtitle: { type: Type.STRING },
+      theme: { type: Type.STRING },
+      rounds: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            id: { type: Type.STRING },
+            question: { type: Type.STRING },
+            multiplier: { type: Type.INTEGER },
+            answers: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.STRING },
+                  text: { type: Type.STRING },
+                  points: { type: Type.INTEGER },
+                },
+                required: ['id', 'text', 'points']
+              }
+            }
+          },
+          required: ['id', 'question', 'multiplier', 'answers']
+        }
+      },
+      fastMoney: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            id: { type: Type.STRING },
+            question: { type: Type.STRING },
+            answers: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  text: { type: Type.STRING },
+                  points: { type: Type.INTEGER }
+                },
+                required: ['text', 'points']
+              }
+            }
+          },
+          required: ['id', 'question', 'answers']
+        }
+      }
+    },
+    required: ['title', 'theme', 'rounds', 'fastMoney']
+  };
+
+  const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash'];
+  let lastFeudError = '';
+
+  for (const model of candidateModels) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: schema,
+        },
+      });
+
+      const text = response.text?.trim();
+      if (text) {
+        const data = JSON.parse(text);
+        data.id = `feud-ai-${Date.now()}`;
+        return res.json(data);
+      }
+    } catch (err: unknown) {
+      const errMsg = (err as Error)?.message || String(err);
+      console.warn(`Feud generation with ${model} failed: ${errMsg}`);
+      lastFeudError = errMsg;
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  }
+
+  return res.status(502).json({
+    error: `Could not generate Family Feud set for "${topic}": ${lastFeudError || 'Model returned empty response.'}`,
+    rawError: lastFeudError
+  });
+});
+
+// =============================================================================
 // Mount Vite middlewares in development or serve dist in production
 // =============================================================================
 async function startServer() {
@@ -502,7 +624,10 @@ async function startServer() {
 
   if (!isProd) {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: false,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
