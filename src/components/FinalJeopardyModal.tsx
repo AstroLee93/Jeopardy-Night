@@ -3,7 +3,7 @@ import { FinalJeopardyItem } from '../data/animeJeopardyData';
 import { Team } from './ScoreBoard';
 import { soundFx } from '../utils/audioSynth';
 import { gameSync, ScreenRole } from '../utils/gameSync';
-import { Trophy, Clock, Check, X, Tv, Crown } from 'lucide-react';
+import { Trophy, Clock, Check, X, Tv, Crown, Camera } from 'lucide-react';
 
 interface FinalJeopardyModalProps {
   finalData: FinalJeopardyItem;
@@ -254,10 +254,10 @@ export const FinalJeopardyModal: React.FC<FinalJeopardyModalProps> = ({
         {stage === 'CLUE' && (
           <div className="space-y-6">
             {finalData.image && (
-              <div className="max-w-md mx-auto max-h-56 rounded-xl overflow-hidden border-2 border-[#ffcc00] shadow-md bg-black">
+              <div className="relative max-w-md mx-auto max-h-56 rounded-xl overflow-hidden border-2 border-[#ffcc00] shadow-md bg-black">
                 <img
                   src={finalData.image}
-                  alt="Final Clue"
+                  alt="Final Clue Image"
                   onError={(e) => {
                     if (finalData.fallbackImage) {
                       e.currentTarget.src = finalData.fallbackImage;

@@ -42,6 +42,10 @@ npm start
 ### Docker & Portainer Deployment (Raspberry Pi / Home Server)
 To run the full-stack app with the AI Trivia Generator and real-time multi-screen sync:
 ```bash
+# 1. Create project directory and enter it
+mkdir -p ~/family-jeopardy && cd ~/family-jeopardy
+
+# 2. Launch the container
 docker compose up -d --build
 ```
 Or in Portainer (Stacks -> Add Stack):
@@ -61,6 +65,20 @@ services:
       - GEMINI_API_KEY=AQ.Ab8YourAuthenticationKeyHere
 ```
 *Note: Supports both Google's newer, more secure `AQ.Ab8...` Authentication Keys and legacy `AIzaSy...` keys from [Google AI Studio](https://aistudio.google.com/app/apikey).*
+
+### 🐍 Python (FastAPI + official google-genai SDK) Option
+To run the full-stack container using the **Python backend** powered by Google's official `google-genai` Python library:
+```bash
+# Launch with Python backend Dockerfile
+docker compose -f docker-compose.python.yml up -d --build
+```
+Or run directly with Python:
+```bash
+cd python_backend
+pip install -r requirements.txt
+export GEMINI_API_KEY=AQ.Ab8YourKeyHere
+python server.py
+```
 
 ---
 

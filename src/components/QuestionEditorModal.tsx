@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { JeopardyGameData, ClueItem } from '../data/animeJeopardyData';
 import { AiQuestionGeneratorModal } from './AiQuestionGeneratorModal';
-import { Copy, Check, Download, Edit3, X, Save, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { Copy, Check, Download, Edit3, X, Save, Sparkles, Image as ImageIcon, Camera, Search, Loader2 } from 'lucide-react';
 
 interface QuestionEditorModalProps {
   gameData: JeopardyGameData;
@@ -18,6 +18,7 @@ export const QuestionEditorModal: React.FC<QuestionEditorModalProps> = ({
   const [selectedCatIdx, setSelectedCatIdx] = useState<number>(0);
   const [copied, setCopied] = useState<boolean>(false);
   const [showAiGenerator, setShowAiGenerator] = useState<boolean>(false);
+  const [searchingIdx, setSearchingIdx] = useState<number | null>(null);
 
   const activeCategory = data.categories[selectedCatIdx];
 
@@ -29,6 +30,31 @@ export const QuestionEditorModal: React.FC<QuestionEditorModalProps> = ({
       cat.clues[clueIdx] = clue;
       return copy;
     });
+  };
+
+  const handleSearchWikimedia = async (clueIdx: number, clue: ClueItem) => {
+    const defaultSearch = clue.image_search_query || clue.answer.replace(/^Who is |^What is |^Where is |\?/gi, '').trim();
+    const query = window.prompt('Enter entity name for Wikidata Canonical Lookup (e.g. "Death Note", "Mona Lisa", "Mount Fuji", "Monkey D. Luffy", "Pikachu"):', defaultSearch);
+    if (!query || !query.trim()) return;
+
+    setSearchingIdx(clueIdx);
+    try {
+      const res = await fetch(`/api/images/lookup?query=${encodeURIComponent(query.trim())}`);
+      if (res.ok) {
+        const result = await res.json();
+        if (result?.url) {
+          handleUpdateClue(clueIdx, 'image', result.url);
+          handleUpdateClue(clueIdx, 'image_search_query', query.trim());
+          handleUpdateClue(clueIdx, 'imageSource', result.source || `Wikidata (${result.entityId || 'P18'})`);
+        }
+      } else {
+        alert(`No canonical image claim (P18/P154) found on Wikidata for "${query}".`);
+      }
+    } catch {
+      alert('Error searching Wikidata API.');
+    } finally {
+      setSearchingIdx(null);
+    }
   };
 
   const handleUpdateCategoryTitle = (title: string) => {
@@ -196,16 +222,36 @@ window.ANIME_JEOPARDY_DATA = ${JSON.stringify(data, null, 2)};
                       </div>
 
                       <div>
-                        <label className="text-[11px] font-semibold text-slate-400 block mb-0.5">
-                          Image Path / URL (e.g. /images/character.jpg)
-                        </label>
+                        <div className="flex items-center justify-between mb-0.5">
+                          <label className="text-[11px] font-semibold text-slate-400">
+                            Image Path / URL (e.g. /images/character.jpg)
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => handleSearchWikimedia(clueIdx, clue)}
+                            disabled={searchingIdx === clueIdx}
+                            className="text-[10px] text-amber-300 hover:text-white flex items-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/30 transition-colors cursor-pointer"
+                          >
+                            {searchingIdx === clueIdx ? (
+                              <Loader2 className="w-3 h-3 animate-spin text-[#ffcc00]" />
+                            ) : (
+                              <Camera className="w-3 h-3 text-[#ffcc00]" />
+                            )}
+                            <span>Wikidata Image</span>
+                          </button>
+                        </div>
                         <input
                           type="text"
-                          placeholder="/images/your-pic.jpg"
+                          placeholder="https://upload.wikimedia.org/... or /images/pic.jpg"
                           value={clue.image || ''}
                           onChange={(e) => handleUpdateClue(clueIdx, 'image', e.target.value || null)}
                           className="w-full bg-[#02052c] border border-slate-700 rounded-lg px-2.5 py-1.5 text-sm text-amber-300 outline-none focus:border-[#ffcc00]"
                         />
+                        {clue.imageSource && (
+                          <span className="text-[10px] text-slate-400 mt-0.5 block">
+                            Source: {clue.imageSource} {clue.image_search_query ? `(${clue.image_search_query})` : ''}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

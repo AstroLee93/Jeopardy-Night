@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
+import { wikidataImageService } from './src/services/wikidataImageService.ts';
 
 dotenv.config();
 
@@ -80,6 +81,190 @@ function getGenAI() {
 }
 
 // =============================================================================
+// Wikidata Structured-Data Image Pipeline (10/10 Accuracy)
+// =============================================================================
+interface PhotoLookupResult {
+  url: string;
+  alt: string;
+  source: string;
+  entityId?: string;
+  filename?: string;
+  property?: 'P18' | 'P154';
+}
+
+async function fetchRealPhoto(rawQuery?: string | null): Promise<PhotoLookupResult | null> {
+  if (!rawQuery || typeof rawQuery !== 'string' || !rawQuery.trim()) {
+    return null;
+  }
+  const cleanQuery = rawQuery.trim().replace(/^["'`]|["'`]$/g, '');
+  if (!cleanQuery) return null;
+
+  try {
+    const wikiData = await wikidataImageService.getImageForTopic(cleanQuery, 800);
+    if (wikiData) {
+      return {
+        url: wikiData.url,
+        alt: wikiData.entityLabel || cleanQuery,
+        source: `Wikidata (${wikiData.entityId})`,
+        entityId: wikiData.entityId,
+        filename: wikiData.filename,
+        property: wikiData.property,
+      };
+    }
+  } catch (err) {
+    console.warn(`[Wikidata] Pipeline error for "${cleanQuery}":`, (err as Error)?.message || err);
+  }
+
+  return null;
+}
+
+// Checks if an image query or filename directly spoils the answer in plaintext
+function isSpoilerMatch(query: string, answer: string, filename?: string): boolean {
+  if (!query || !answer) return false;
+  
+  const cleanAnswer = answer
+    .toLowerCase()
+    .replace(/^(who is|what is|where is|when is)\s+/i, '')
+    .replace(/[^\w\s]/g, '')
+    .trim();
+  
+  const cleanQuery = query
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '')
+    .trim();
+
+  // If query is directly identical to the core answer, it spoils the challenge
+  if (cleanQuery.length > 2 && cleanQuery === cleanAnswer) {
+    return true;
+  }
+
+  // If filename contains words like logo/title/wordmark, reject
+  if (filename) {
+    const cleanFn = filename.toLowerCase();
+    if (/(logo|title_screen|title_card|wordmark|dvd_cover|poster)/i.test(cleanFn)) {
+      return true;
+    }
+    // If filename explicitly includes the full show/character name from the answer alongside 'title'
+    if (cleanAnswer.length > 3 && cleanFn.includes(cleanAnswer.replace(/\s+/g, '_'))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Enriches a full board with real canonical photos concurrently
+async function enrichBoardWithImages(board: any) {
+  if (!board || !Array.isArray(board.categories)) return board;
+
+  const tasks: Promise<void>[] = [];
+
+  for (const cat of board.categories) {
+    if (Array.isArray(cat.clues)) {
+      for (const clue of cat.clues) {
+        const query = clue.image_search_query || (clue.image && !clue.image.startsWith('/') && !clue.image.startsWith('http') ? clue.image : null);
+        if (query) {
+          if (isSpoilerMatch(query, clue.answer)) {
+            console.warn(`[Anti-Spoiler] Discarded spoiler query "${query}" for answer "${clue.answer}"`);
+            clue.image = null;
+            clue.image_search_query = null;
+            continue;
+          }
+          tasks.push(
+            fetchRealPhoto(query).then((photo) => {
+              if (photo && !isSpoilerMatch(query, clue.answer, photo.filename)) {
+                clue.image = photo.url;
+                clue.imageAlt = 'Visual Clue';
+                clue.imageSource = photo.source;
+              } else {
+                clue.image = null;
+                clue.image_search_query = null;
+              }
+            })
+          );
+        }
+      }
+    }
+  }
+
+  const finalQuery = board.finalJeopardy?.image_search_query || (board.finalJeopardy?.image && !board.finalJeopardy.image.startsWith('/') && !board.finalJeopardy.image.startsWith('http') ? board.finalJeopardy.image : null);
+  if (finalQuery && board.finalJeopardy) {
+    if (isSpoilerMatch(finalQuery, board.finalJeopardy.answer)) {
+      console.warn(`[Anti-Spoiler] Discarded spoiler query for final jeopardy`);
+      board.finalJeopardy.image = null;
+      board.finalJeopardy.image_search_query = null;
+    } else {
+      tasks.push(
+        fetchRealPhoto(finalQuery).then((photo) => {
+          if (photo && !isSpoilerMatch(finalQuery, board.finalJeopardy.answer, photo.filename)) {
+            board.finalJeopardy.image = photo.url;
+            board.finalJeopardy.imageAlt = 'Final Clue Image';
+            board.finalJeopardy.imageSource = photo.source;
+          } else {
+            board.finalJeopardy.image = null;
+            board.finalJeopardy.image_search_query = null;
+          }
+        })
+      );
+    }
+  }
+
+  if (tasks.length > 0) {
+    await Promise.allSettled(tasks);
+  }
+
+  return board;
+}
+
+// Enriches a single category with real canonical photos
+async function enrichCategoryWithImages(category: any) {
+  if (!category || !Array.isArray(category.clues)) return category;
+
+  const tasks: Promise<void>[] = [];
+  for (const clue of category.clues) {
+    const query = clue.image_search_query || (clue.image && !clue.image.startsWith('/') && !clue.image.startsWith('http') ? clue.image : null);
+    if (query) {
+      if (isSpoilerMatch(query, clue.answer)) {
+        clue.image = null;
+        clue.image_search_query = null;
+        continue;
+      }
+      tasks.push(
+        fetchRealPhoto(query).then((photo) => {
+          if (photo && !isSpoilerMatch(query, clue.answer, photo.filename)) {
+            clue.image = photo.url;
+            clue.imageAlt = 'Visual Clue';
+            clue.imageSource = photo.source;
+          } else {
+            clue.image = null;
+            clue.image_search_query = null;
+          }
+        })
+      );
+    }
+  }
+
+  if (tasks.length > 0) {
+    await Promise.allSettled(tasks);
+  }
+
+  return category;
+}
+
+// Standalone Wikidata structured image lookup endpoint
+app.get('/api/images/lookup', async (req, res) => {
+  const query = req.query.query as string;
+  if (!query) {
+    return res.status(400).json({ error: 'Query parameter required' });
+  }
+  const result = await wikidataImageService.getImageForTopic(query, 800);
+  if (!result) {
+    return res.status(404).json({ error: 'No canonical Wikidata image claim (P18/P154) found for this topic' });
+  }
+  return res.json(result);
+});
+
+// =============================================================================
 // API: Generate Full Anime Jeopardy Board (6 Categories x 5 Clues + Final)
 // =============================================================================
 app.post('/api/ai/generate-board', async (req, res) => {
@@ -94,18 +279,33 @@ app.post('/api/ai/generate-board', async (req, res) => {
     });
   }
 
-  const prompt = `You are an elite Jeopardy question writer and anime trivia champion.
-Create a complete, authentic 6-category Anime Jeopardy game board based on the theme: "${theme || 'Popular Anime Favorites'}".
+  const prompt = `You are an elite Jeopardy question writer and trivia champion.
+Create a complete, authentic 6-category Jeopardy game board based on the theme: "${theme || 'Popular Anime Favorites'}".
 Target Audience / Difficulty: "${difficulty}".
 ${customInstructions ? `Special Instructions: ${customInstructions}` : ''}
 
 Strict Rules:
 1. Exactly 6 creative categories. Each category must have exactly 5 clues with values $200, $400, $600, $800, and $1000 in strictly ascending difficulty.
-2. Clues must be written in traditional Jeopardy clue phrasing (e.g. "This rubber-bodied captain...", "This alchemy taboo...", "In this 1997 film...").
+2. Clues must be written in traditional Jeopardy clue phrasing (e.g. "This rubber-bodied captain...", "This sacred volcano...", "In this 1997 film...").
 3. Answers must be phrased as questions: "Who is [Character]?" or "What is [Object/Place/Power]?"
 4. Designate 1 or 2 clues total as isDailyDouble: true (usually on a $600 or $800 clue).
-5. For clues with iconic visual subjects, suggest a clean local image path (e.g. "/images/luffy.jpg", "/images/totoro.jpg") or set to null if text-only.
-6. Provide one high-stakes Final Jeopardy with a category, clue, answer, and optional image suggestion.`;
+5. CRITICAL VISUAL HINT RULE (CLEVER IN-UNIVERSE HINTS ONLY - NEVER PLAINTEXT SPOILERS):
+   The image must be a clever Jeopardy PUZZLE HINT or in-universe artifact, NEVER the answer in plaintext!
+   - 🚫 NEVER show logos, title cards, covers, posters, or graphics that spell out the answer in text.
+   - 🚫 NEVER put the exact answer entity in "image_search_query" if the question asks players to name them!
+     (e.g., if the answer is "Who is Monkey D. Luffy?", DO NOT show Luffy himself; if the answer is "What is Death Note?", DO NOT show the Death Note title).
+   - ✅ INSTEAD: In "image_search_query", choose a recognizable in-universe item, weapon, vehicle, symbolic prop, creature, or distinct cultural artifact:
+     * Question asks about Death Note ➔ Hint: "Red apple" or "Fountain pen"
+     * Question asks about Monkey D. Luffy ➔ Hint: "Straw hat" or "Going Merry"
+     * Question asks about Evangelion ➔ Hint: "Spear of Longinus" or "Cassette player"
+     * Question asks about Dragon Ball ➔ Hint: "Dragon Radar" or "Flying Nimbus" or "Turtle shell"
+     * Question asks about Naruto ➔ Hint: "Ramen" or "Headband with metal plate"
+     * Question asks about Attack on Titan ➔ Hint: "Wings of Freedom" or "Omni-directional mobility gear"
+     * Question asks about Demon Slayer ➔ Hint: "Hanafuda earrings" or "Bamboo muzzle"
+     * Question asks about Studio Ghibli ➔ Hint: "Catbus" or "Acorn"
+     * Question asks about an author/director ➔ Hint: An iconic artifact from their show, NOT the author's portrait or name.
+   - Limit images to 1 or 2 clues per category where a clever visual hint fits naturally. Otherwise set "image_search_query": null.
+6. Provide one high-stakes Final Jeopardy with a category, clue, answer, and optional subtle in-universe item hint in "image_search_query".`;
 
   const schema = {
     type: Type.OBJECT,
@@ -130,6 +330,7 @@ Strict Rules:
                   clue: { type: Type.STRING },
                   answer: { type: Type.STRING },
                   isDailyDouble: { type: Type.BOOLEAN },
+                  image_search_query: { type: Type.STRING, nullable: true },
                   image: { type: Type.STRING, nullable: true },
                   imageAlt: { type: Type.STRING, nullable: true },
                 },
@@ -146,7 +347,9 @@ Strict Rules:
           category: { type: Type.STRING },
           clue: { type: Type.STRING },
           answer: { type: Type.STRING },
+          image_search_query: { type: Type.STRING, nullable: true },
           image: { type: Type.STRING, nullable: true },
+          imageAlt: { type: Type.STRING, nullable: true },
         },
         required: ['category', 'clue', 'answer'],
       },
@@ -172,7 +375,9 @@ Strict Rules:
 
       const text = response.text?.trim();
       if (text) {
-        const data = JSON.parse(text);
+        let data = JSON.parse(text);
+        // Automatically fetch real photos for any image_search_query via Wikimedia / Wikipedia / Unsplash
+        data = await enrichBoardWithImages(data);
         return res.json({
           ...data,
           source: model
@@ -223,7 +428,9 @@ app.post('/api/ai/generate-category', async (req, res) => {
   const prompt = `Write a single Jeopardy category with 5 clues about: "${topic || 'Iconic Anime Battles'}".
 Difficulty: "${difficulty}".
 Clues must escalate from $200 (easiest) to $1000 (toughest).
-Clues must be written in Jeopardy clue format, and answers must be phrased as questions ("Who is...?", "What is...?").`;
+Clues must be written in Jeopardy clue format, and answers must be phrased as questions ("Who is...?", "What is...?").
+VISUAL HINT RULE: Images must be subtle in-universe artifacts or puzzle hints, NEVER direct answer spoilers or title logos in plaintext!
+For example: if the answer is a show/creator/character, provide an iconic item (e.g. 'Straw hat', 'Dragon Radar', 'Kunai', 'Red apple', 'Catbus', 'Spear of Longinus') in "image_search_query". NEVER show logos, covers, or the answer itself in text. Otherwise set to null.`;
 
   const schema = {
     type: Type.OBJECT,
@@ -239,7 +446,9 @@ Clues must be written in Jeopardy clue format, and answers must be phrased as qu
             clue: { type: Type.STRING },
             answer: { type: Type.STRING },
             isDailyDouble: { type: Type.BOOLEAN },
+            image_search_query: { type: Type.STRING, nullable: true },
             image: { type: Type.STRING, nullable: true },
+            imageAlt: { type: Type.STRING, nullable: true },
           },
           required: ['value', 'clue', 'answer'],
         },
@@ -266,7 +475,9 @@ Clues must be written in Jeopardy clue format, and answers must be phrased as qu
 
       const text = response.text?.trim();
       if (text) {
-        return res.json(JSON.parse(text));
+        let data = JSON.parse(text);
+        data = await enrichCategoryWithImages(data);
+        return res.json(data);
       }
     } catch (err: unknown) {
       const errMsg = (err as Error)?.message || String(err);

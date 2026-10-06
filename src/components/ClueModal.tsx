@@ -20,7 +20,8 @@ import {
   VolumeX,
   Radio,
   Tv,
-  Crown
+  Crown,
+  Camera
 } from 'lucide-react';
 
 interface ClueModalProps {
@@ -648,7 +649,7 @@ export const ClueModal: React.FC<ClueModalProps> = ({
               {!imgError ? (
                 <img
                   src={clue.image}
-                  alt={clue.imageAlt || 'Anime Clue'}
+                  alt="Visual Clue"
                   onError={() => {
                     if (clue.fallbackImage && !imgError) {
                       const target = event?.target as HTMLImageElement;
@@ -663,7 +664,7 @@ export const ClueModal: React.FC<ClueModalProps> = ({
               ) : (
                 <div className="p-4 text-center text-slate-300 flex flex-col items-center gap-1.5">
                   <ImageIcon className="w-8 h-8 text-[#ffcc00] opacity-80" />
-                  <span className="text-xs font-semibold text-white">Local Image: {clue.image}</span>
+                  <span className="text-xs font-semibold text-slate-400">Visual Clue</span>
                 </div>
               )}
             </div>

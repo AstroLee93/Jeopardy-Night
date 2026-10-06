@@ -7,6 +7,8 @@ export interface ClueItem {
   image?: string | null;
   fallbackImage?: string;
   imageAlt?: string;
+  image_search_query?: string | null;
+  imageSource?: string | null;
 }
 
 export interface CategoryItem {
@@ -23,6 +25,8 @@ export interface FinalJeopardyItem {
   image?: string | null;
   fallbackImage?: string;
   imageAlt?: string;
+  image_search_query?: string | null;
+  imageSource?: string | null;
 }
 
 export interface JeopardyGameData {
