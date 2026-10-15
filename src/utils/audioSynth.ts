@@ -172,6 +172,15 @@ class SoundSynthesizer {
     this.playTone(1200, 0.03, 'sine', 0.2);
   }
 
+  // Fast Money Duplicate Answer Double Buzz ("BZZ-BZZ! Duplicate, try again!")
+  public playDuplicateBuzzer() {
+    if (!this.enabled || this.volume <= 0) return;
+    this.playTone(135, 0.12, 'sawtooth', 0.45);
+    setTimeout(() => {
+      this.playTone(135, 0.18, 'sawtooth', 0.45);
+    }, 180);
+  }
+
   // Round Won / Family Feud Win Fanfare
   public playFeudWin() {
     if (!this.enabled || this.volume <= 0) return;

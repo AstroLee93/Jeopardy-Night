@@ -97,20 +97,38 @@ export type SyncAction =
   | { type: 'FEUD_AWARD_BANK'; teamIndex: 0 | 1; updatedTeams: any[] }
   | { type: 'FEUD_APPLY_GAME'; game: any }
   | { type: 'FEUD_SYNC_STATE'; state: any }
-  | { type: 'SYNC_FULL_STATE'; state: SyncedGameState };
+  | { type: 'FAST_MONEY_OPEN' }
+  | { type: 'FAST_MONEY_CLOSE' }
+  | { type: 'FAST_MONEY_SET_STAGE'; stage: 'PLAYER1' | 'PLAYER2' | 'REVEAL' | 'RESULTS' }
+  | { type: 'FAST_MONEY_SET_PLAYER'; player: 1 | 2; timerSeconds: number }
+  | { type: 'FAST_MONEY_TIMER'; isRunning: boolean; timerSeconds: number }
+  | { type: 'FAST_MONEY_SET_ACTIVE_Q'; qIndex: number }
+  | { type: 'FAST_MONEY_SET_ANSWER'; player: 1 | 2; qIndex: number; text: string; points: number }
+  | { type: 'FAST_MONEY_REVEAL_ANSWER'; player: 1 | 2; qIndex: number; points: number }
+  | { type: 'FAST_MONEY_DUPLICATE_TRIGGER'; qIndex: number; text: string }
+  | { type: 'FAST_MONEY_WIN'; totalPoints: number }
+  | { type: 'FAST_MONEY_SYNC_STATE'; state: any }
+  | { type: 'UPDATE_TEAMS'; teams: any[] }
+  | { type: 'SET_GAME_DATA'; gameData: any }
+  | { type: 'REQUEST_STATE' }
+  | { type: 'SYNC_FULL_STATE'; state: any };
+
+export type SyncConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
 class GameSyncManager {
   private channel: BroadcastChannel | null = null;
   private listeners: Array<(action: SyncAction) => void> = [];
+  private statusListeners: Array<(status: SyncConnectionStatus) => void> = [];
   private sseSource: EventSource | null = null;
   public currentRole: ScreenRole = 'host';
   private clientId: string = `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 9)}`;
   private isDispatching: boolean = false;
   private pendingActions: SyncAction[] = [];
   private seenActionIds: Set<string> = new Set();
+  public connectionStatus: SyncConnectionStatus = 'disconnected';
 
   constructor() {
-    // Check URL query param first: ?role=tv or ?role=host
+    // Check URL query param first: ?role=tv or ?role=host takes strict priority!
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const urlRole = params.get('role');
@@ -142,7 +160,31 @@ class GameSyncManager {
 
       // Connect to server-sent events for cross-device Wi-Fi sync
       this.initServerEvents();
+
+      // Immediately fetch authoritative server state on startup
+      this.fetchServerState();
     }
+  }
+
+  // Fetch state snapshot from the server (critical for TV or secondary screens joining late)
+  public async fetchServerState() {
+    if (typeof window === 'undefined') return;
+    try {
+      const res = await fetch('/api/sync/state');
+      if (res.ok) {
+        const data = await res.json();
+        // Accept authoritative state whenever provided (do not reject SETUP phase!)
+        if (data && data.state) {
+          this.notifyListeners({
+            type: 'SYNC_FULL_STATE',
+            state: data.state
+          });
+        }
+      }
+    } catch {}
+
+    // Also ask any active Host tab to share its live state
+    this.broadcast({ type: 'REQUEST_STATE' });
   }
 
   public setRole(role: ScreenRole) {
@@ -257,9 +299,19 @@ class GameSyncManager {
     if (typeof window === 'undefined') return;
 
     try {
+      this.connectionStatus = 'connecting';
+      this.notifyStatusListeners('connecting');
+
       this.sseSource = new EventSource('/api/sync/events');
+      
+      this.sseSource.onopen = () => {
+        this.connectionStatus = 'connected';
+        this.notifyStatusListeners('connected');
+      };
+
       this.sseSource.onmessage = (event) => {
         try {
+          this.connectionStatus = 'connected';
           const action = JSON.parse(event.data);
           // If this event was sent by this exact tab/client, ignore it
           if (action._senderId === this.clientId) {
@@ -268,10 +320,31 @@ class GameSyncManager {
           this.notifyListeners(action);
         } catch {}
       };
+
       this.sseSource.onerror = () => {
-        // Fallback or retry handled automatically by browser EventSource
+        this.connectionStatus = 'disconnected';
+        this.notifyStatusListeners('disconnected');
       };
-    } catch {}
+    } catch {
+      this.connectionStatus = 'disconnected';
+      this.notifyStatusListeners('disconnected');
+    }
+  }
+
+  public subscribeStatus(listener: (status: SyncConnectionStatus) => void): () => void {
+    this.statusListeners.push(listener);
+    listener(this.connectionStatus);
+    return () => {
+      this.statusListeners = this.statusListeners.filter((l) => l !== listener);
+    };
+  }
+
+  private notifyStatusListeners(status: SyncConnectionStatus) {
+    this.statusListeners.forEach((l) => {
+      try {
+        l(status);
+      } catch {}
+    });
   }
 }
 

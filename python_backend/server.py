@@ -13,7 +13,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
@@ -289,9 +289,97 @@ async def lookup_image(query: str = Query(..., description="Entity topic name"))
 # Screen Synchronization & Buzzer State API
 # ==============================================================================
 
+sse_clients: List[asyncio.Queue] = []
+
 @app.get("/api/sync/state")
 async def get_sync_state():
-    return game_sync_state
+    return {"ok": True, "state": game_sync_state}
+
+
+@app.post("/api/sync/state")
+async def set_sync_state(req: Request):
+    data = await req.json()
+    state = data.get("state", data)
+    game_sync_state.update(state)
+    game_sync_state["lastActionTimestamp"] = int(asyncio.get_event_loop().time() * 1000)
+    
+    # Broadcast to all SSE clients
+    payload = f"data: {json.dumps({'type': 'SYNC_FULL_STATE', 'state': game_sync_state, '_actionId': f'py-{int(asyncio.get_event_loop().time()*1000)}'})}\n\n"
+    for q in sse_clients:
+        await q.put(payload)
+        
+    return {"ok": True, "state": game_sync_state}
+
+
+@app.get("/api/sync/events")
+async def sync_events(req: Request):
+    queue: asyncio.Queue = asyncio.Queue()
+    sse_clients.append(queue)
+
+    async def event_generator():
+        try:
+            # Immediately send initial state snapshot so TV/late-joining devices sync instantly
+            initial_payload = f"data: {json.dumps({'type': 'SYNC_FULL_STATE', 'state': game_sync_state, '_isInitialSnapshot': True})}\n\n"
+            yield initial_payload
+
+            while True:
+                if await req.is_disconnected():
+                    break
+                try:
+                    data = await asyncio.wait_for(queue.get(), timeout=25.0)
+                    yield data
+                except asyncio.TimeoutError:
+                    yield ": ping\n\n"
+        finally:
+            if queue in sse_clients:
+                sse_clients.remove(queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+        },
+    )
+
+
+@app.post("/api/sync/action")
+async def sync_action(req: Request):
+    action = await req.json()
+    if not action or "type" not in action:
+        raise HTTPException(status_code=400, detail="Invalid action payload")
+
+    # Update authoritative in-memory state
+    action_type = action.get("type")
+    if action_type == "SET_GAME_MODE":
+        game_sync_state["gameMode"] = action.get("mode")
+    elif action_type == "START_GAME":
+        game_sync_state["phase"] = "BOARD"
+        if "teams" in action:
+            game_sync_state["teams"] = action["teams"]
+        if "gameData" in action:
+            game_sync_state["gameData"] = action["gameData"]
+    elif action_type == "UPDATE_TEAMS" and "teams" in action:
+        game_sync_state["teams"] = action["teams"]
+    elif action_type == "AWARD_SCORE" and "teamId" in action:
+        teams = game_sync_state.get("teams", [])
+        for t in teams:
+            if t.get("id") == action.get("teamId"):
+                t["score"] = t.get("score", 0) + action.get("delta", 0)
+    elif action_type == "FEUD_AWARD_BANK" and "updatedTeams" in action:
+        game_sync_state["teams"] = action["updatedTeams"]
+    elif action_type == "SYNC_FULL_STATE" and "state" in action:
+        game_sync_state.update(action["state"])
+
+    game_sync_state["lastActionTimestamp"] = int(asyncio.get_event_loop().time() * 1000)
+
+    payload = f"data: {json.dumps(action)}\n\n"
+    for q in sse_clients:
+        await q.put(payload)
+
+    return {"ok": True, "recipientCount": len(sse_clients)}
 
 
 @app.post("/api/sync/update")

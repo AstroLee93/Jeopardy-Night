@@ -19,6 +19,7 @@ import { ScoreEditorModal } from './components/ScoreEditorModal';
 import { GameSettingsModal } from './components/GameSettingsModal';
 import { RoleDesignationModal } from './components/RoleDesignationModal';
 import { FamilyFeudBoard } from './components/FamilyFeudBoard';
+import { TvLobbyWaitingScreen } from './components/TvLobbyWaitingScreen';
 import { soundFx } from './utils/audioSynth';
 import { gameSync, ScreenRole } from './utils/gameSync';
 import { 
@@ -39,7 +40,10 @@ import {
   Tv,
   Crown,
   Monitor,
-  Flame
+  Flame,
+  Copy,
+  Check,
+  ExternalLink
 } from 'lucide-react';
 
 const DEFAULT_TEAMS_INFO = [
@@ -98,6 +102,15 @@ export default function App() {
 
   // Auto-Save Recovery Notice
   const [hasSavedSession, setHasSavedSession] = useState<boolean>(false);
+  const [syncStatus, setSyncStatus] = useState<string>('connecting');
+
+  // Track real-time network sync connection health
+  useEffect(() => {
+    const unsub = gameSync.subscribeStatus((status) => {
+      setSyncStatus(status);
+    });
+    return () => unsub();
+  }, []);
 
   // Handle Role Changes
   const handleRoleChange = (newRole: ScreenRole) => {
@@ -108,6 +121,15 @@ export default function App() {
   const handleSwitchGameMode = (mode: 'JEOPARDY' | 'FEUD') => {
     setGameMode(mode);
     gameSync.broadcast({ type: 'SET_GAME_MODE', mode });
+    gameSync.broadcast({
+      type: 'SYNC_FULL_STATE',
+      state: {
+        gameMode: mode,
+        phase,
+        teams,
+        gameData
+      }
+    });
     if (mode === 'FEUD') {
       soundFx.playFeudReveal();
     } else {
@@ -119,13 +141,78 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = gameSync.subscribe((action) => {
       switch (action.type) {
+        case 'SYNC_FULL_STATE': {
+          const s = action.state;
+          if (s) {
+            if (s.gameMode && (s.gameMode === 'JEOPARDY' || s.gameMode === 'FEUD')) {
+              setGameMode(s.gameMode);
+            }
+            if (s.phase) setPhase(s.phase);
+            if (s.teams && Array.isArray(s.teams) && s.teams.length > 0) {
+              setTeams(s.teams);
+            }
+            if (s.gameData && s.gameData.categories && Array.isArray(s.gameData.categories) && s.gameData.categories.length > 0) {
+              setGameData(s.gameData);
+            }
+            if (s.usedClues && Array.isArray(s.usedClues)) {
+              setUsedClues(new Set(s.usedClues));
+            }
+            if (s.activeClueData !== undefined) {
+              setActiveClueData(s.activeClueData);
+              if (s.activeClueData?.clue?.isDailyDouble) {
+                setIsDailyDoubleActive(true);
+              } else {
+                setIsDailyDoubleActive(false);
+              }
+            }
+          }
+          break;
+        }
+
+        case 'REQUEST_STATE': {
+          // If this is the active Host, share complete full state with newly connected TV screens
+          if (role === 'host') {
+            gameSync.broadcast({
+              type: 'SYNC_FULL_STATE',
+              state: {
+                gameMode,
+                phase,
+                teams,
+                gameData,
+                usedClues: Array.from(usedClues),
+                activeClueData,
+                isDailyDoubleActive
+              }
+            });
+          }
+          break;
+        }
+
+        case 'UPDATE_TEAMS':
+          if (action.teams && Array.isArray(action.teams)) {
+            setTeams(action.teams);
+          }
+          break;
+
+        case 'SET_GAME_DATA':
+          if (action.gameData && action.gameData.categories) {
+            setGameData(action.gameData);
+            setUsedClues(new Set());
+            setActiveClueData(null);
+          }
+          break;
+
         case 'SET_GAME_MODE':
           if (action.mode) setGameMode(action.mode);
           break;
 
         case 'START_GAME':
-          if (action.teams) setTeams(action.teams);
-          if (action.gameData) setGameData(action.gameData);
+          if (action.teams && Array.isArray(action.teams) && action.teams.length > 0) {
+            setTeams(action.teams);
+          }
+          if (action.gameData && action.gameData.categories && action.gameData.categories.length > 0) {
+            setGameData(action.gameData);
+          }
           setUsedClues(new Set());
           setActiveClueData(null);
           setPhase('BOARD');
@@ -197,10 +284,16 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, [activeClueData, gameData]);
+  }, [activeClueData, gameData, role, phase, teams, gameMode, isDailyDoubleActive, usedClues]);
 
-  // Restore game state on mount if available
+  // Immediately request active game snapshot on mount (vital for TV screens connecting after Host starts)
   useEffect(() => {
+    gameSync.fetchServerState();
+  }, []);
+
+  // Restore game state on mount if available (ONLY for Host controller, NEVER force onto TV display)
+  useEffect(() => {
+    if (role === 'tv') return; // TV should never prompt for local saved sessions!
     try {
       const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (raw) {
@@ -210,7 +303,7 @@ export default function App() {
         }
       }
     } catch {}
-  }, []);
+  }, [role]);
 
   // Save game state whenever relevant properties change
   useEffect(() => {
@@ -340,11 +433,23 @@ export default function App() {
     setHasSavedSession(false);
     soundFx.playCluePing();
 
-    // Broadcast START_GAME to the TV screen so it automatically enters BOARD phase!
+    // Broadcast START_GAME and SYNC_FULL_STATE so TV screens transition automatically!
     gameSync.broadcast({
       type: 'START_GAME',
       teams: initializedTeams,
       gameData
+    });
+    gameSync.broadcast({
+      type: 'SYNC_FULL_STATE',
+      state: {
+        gameMode: 'JEOPARDY',
+        phase: 'BOARD',
+        teams: initializedTeams,
+        gameData,
+        usedClues: [],
+        activeClueData: null,
+        isDailyDoubleActive: false
+      }
     });
   };
 
@@ -437,6 +542,23 @@ export default function App() {
     setUsedClues(new Set());
     setActiveClueData(null);
     soundFx.playCorrect();
+    // Broadcast new AI board to TV and server
+    gameSync.broadcast({
+      type: 'SET_GAME_DATA',
+      gameData: newBoard
+    });
+    gameSync.broadcast({
+      type: 'SYNC_FULL_STATE',
+      state: {
+        gameMode: 'JEOPARDY',
+        phase,
+        teams,
+        gameData: newBoard,
+        usedClues: [],
+        activeClueData: null,
+        isDailyDoubleActive: false
+      }
+    });
   };
 
   // Finish Final Jeopardy
@@ -460,7 +582,7 @@ export default function App() {
           ===================================================================== */}
       <header className="flex items-center justify-between px-3 sm:px-6 py-2.5 bg-[#030852]/90 border-b-2 border-[#ffcc00] shadow-xl z-20">
         {/* Zone 1: Wordmark & Role Indicator Badge */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <span className="text-xl">🏆</span>
             <span className="font-jeopardy-display text-xl sm:text-2xl text-[#ffcc00] uppercase tracking-wider drop-shadow-md">
@@ -480,9 +602,46 @@ export default function App() {
             }`}
           >
             {role === 'tv' ? <Tv className="w-3.5 h-3.5" /> : <Crown className="w-3.5 h-3.5" />}
-            <span>{role === 'tv' ? '📺 TV Display Mode' : '👑 Host Controller'}</span>
-            <span className="text-[10px] text-slate-400 font-normal">▼ Switch</span>
+            <span>{role === 'tv' ? '📺 TV Display' : '👑 Host Controller'}</span>
+            <span className="text-[10px] text-slate-400 font-normal">▼</span>
           </button>
+
+          {/* Real-Time Live Sync Status Pill */}
+          <div
+            title={
+              syncStatus === 'connected'
+                ? 'Real-time multi-screen synchronization is active and working.'
+                : syncStatus === 'connecting'
+                ? 'Connecting to sync service...'
+                : 'Sync disconnected. Reconnecting automatically...'
+            }
+            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border transition-colors ${
+              syncStatus === 'connected'
+                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/70 shadow-[0_0_8px_rgba(52,211,153,0.3)]'
+                : syncStatus === 'connecting'
+                ? 'bg-amber-950/80 text-amber-300 border-amber-500/70 animate-pulse'
+                : 'bg-red-950/80 text-red-300 border-red-500/70'
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                syncStatus === 'connected'
+                  ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]'
+                  : syncStatus === 'connecting'
+                  ? 'bg-amber-400'
+                  : 'bg-red-400'
+              }`}
+            />
+            <span>
+              {role === 'host'
+                ? syncStatus === 'connected'
+                  ? 'Sync Active (Host)'
+                  : 'Connecting...'
+                : syncStatus === 'connected'
+                ? 'Sync Active (TV)'
+                : 'Connecting...'}
+            </span>
+          </div>
 
           {/* Game Mode Switcher: Jeopardy vs Family Feud */}
           <div className="flex items-center bg-black/60 p-1 rounded-xl border border-amber-500/50 shadow-inner">
@@ -515,7 +674,17 @@ export default function App() {
         {/* Zone 2: Navigation Links (Contextual to Role) */}
         <nav className="hidden md:flex items-center gap-4 text-xs sm:text-sm font-semibold text-slate-300">
           <button
-            onClick={() => setPhase('BOARD')}
+            onClick={() => {
+              if (teams.length === 0) {
+                handleStartGame();
+              } else {
+                setPhase('BOARD');
+                gameSync.broadcast({
+                  type: 'SYNC_FULL_STATE',
+                  state: { gameMode, phase: 'BOARD', teams, gameData }
+                });
+              }
+            }}
             className={`hover:text-[#ffcc00] transition-colors cursor-pointer ${phase === 'BOARD' ? 'text-[#ffcc00]' : ''}`}
           >
             Game Board
@@ -701,152 +870,146 @@ export default function App() {
           <>
             {/* PHASE 1: SETUP SCREEN */}
             {phase === 'SETUP' && (
-          <div className="flex-1 flex items-center justify-center py-6">
-            <div className="w-full max-w-3xl bg-gradient-to-b from-[#0b15c9]/30 via-[#04097a]/40 to-[#02052c] border-2 sm:border-4 border-[#ffcc00] rounded-2xl p-6 sm:p-10 shadow-2xl text-center backdrop-blur-md">
-              <span className="text-4xl sm:text-5xl block mb-2">🏆</span>
-              <h1 className="font-jeopardy-display text-3xl sm:text-5xl text-[#ffcc00] uppercase tracking-wider mb-2 drop-shadow-md">
-                Family Jeopardy
-              </h1>
-              <p className="text-slate-300 text-sm sm:text-base mb-6">
-                {gameData.title} · {gameData.subtitle}
-              </p>
-
-              {/* DESIGNATE SCREEN ROLE CALLOUT */}
-              <div className="mb-6 p-4 rounded-xl bg-[#02052c] border-2 border-dashed border-[#ffcc00]/50 text-left">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-[#ffcc00] uppercase tracking-wider flex items-center gap-1.5">
-                    <Monitor className="w-4 h-4" /> Designate This Device's Role:
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowRoleModal(true)}
-                    className="text-xs text-amber-300 hover:underline cursor-pointer"
-                  >
-                    Learn about multi-screen setup →
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => handleRoleChange('tv')}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                      role === 'tv'
-                        ? 'bg-cyan-950/80 border-cyan-400 shadow-md ring-2 ring-cyan-400'
-                        : 'bg-slate-900 border-slate-700 hover:border-cyan-500'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Tv className="w-4 h-4 text-cyan-300" />
-                      <strong className="text-sm text-cyan-300">📺 TV Display Screen</strong>
-                    </div>
-                    <p className="text-[11px] text-slate-400">
-                      Put on your TV or projector. Answers are strictly hidden until Host reveals them.
+              role === 'tv' ? (
+                <TvLobbyWaitingScreen
+                  gameTitle={gameData.title}
+                  gameSubtitle={gameData.subtitle}
+                  onSwitchToHost={() => handleRoleChange('host')}
+                  onCheckSync={() => gameSync.fetchServerState()}
+                />
+              ) : (
+                <div className="flex-1 flex items-center justify-center py-6">
+                  <div className="w-full max-w-3xl bg-gradient-to-b from-[#0b15c9]/30 via-[#04097a]/40 to-[#02052c] border-2 sm:border-4 border-[#ffcc00] rounded-2xl p-6 sm:p-10 shadow-2xl text-center backdrop-blur-md">
+                    <span className="text-4xl sm:text-5xl block mb-2">🏆</span>
+                    <h1 className="font-jeopardy-display text-3xl sm:text-5xl text-[#ffcc00] uppercase tracking-wider mb-2 drop-shadow-md">
+                      Family Jeopardy
+                    </h1>
+                    <p className="text-slate-300 text-sm sm:text-base mb-6">
+                      {gameData.title} · {gameData.subtitle}
                     </p>
-                  </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handleRoleChange('host')}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                      role === 'host'
-                        ? 'bg-amber-950/80 border-[#ffcc00] shadow-md ring-2 ring-[#ffcc00]'
-                        : 'bg-slate-900 border-slate-700 hover:border-amber-500'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Crown className="w-4 h-4 text-[#ffcc00]" />
-                      <strong className="text-sm text-[#ffcc00]">👑 Host Controller (Admin)</strong>
-                    </div>
-                    <p className="text-[11px] text-slate-400">
-                      Keep on your laptop or phone. Private answer key, timer controls, and "Reveal on TV".
-                    </p>
-                  </button>
-                </div>
-              </div>
-
-              {/* Number of Teams Selector */}
-              <div className="mb-6">
-                <span className="text-xs font-bold uppercase tracking-widest text-[#ffcc00] block mb-3">
-                  Select Number of Teams (2 to 6)
-                </span>
-                <div className="flex items-center justify-center gap-2">
-                  {[2, 3, 4, 5, 6].map((count) => (
-                    <button
-                      key={count}
-                      type="button"
-                      onClick={() => setTeamCount(count)}
-                      className={`w-12 h-12 rounded-xl font-jeopardy-display text-xl transition-all cursor-pointer ${
-                        teamCount === count
-                          ? 'bg-[#ffcc00] text-[#030852] font-bold shadow-lg scale-105 border-2 border-white'
-                          : 'bg-slate-800 text-slate-300 border border-slate-700 hover:border-slate-500'
-                      }`}
-                    >
-                      {count}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Team Name Inputs & Avatar Badges */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8 text-left">
-                {Array.from({ length: teamCount }).map((_, idx) => {
-                  const color = DEFAULT_TEAMS_INFO[idx % DEFAULT_TEAMS_INFO.length];
-                  return (
-                    <div key={idx} className="bg-[#02052c] border border-slate-700 rounded-xl p-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <label
-                          style={{ color: color.border }}
-                          className="text-xs font-bold uppercase tracking-wider block"
-                        >
-                          Team {idx + 1}
-                        </label>
-                        <span className="text-base select-none">{color.avatar}</span>
+                    {/* TV SCREEN LINK CALLOUT FOR HOST */}
+                    <div className="mb-6 p-4 rounded-xl bg-cyan-950/40 border border-cyan-500/60 text-left flex items-center justify-between flex-wrap gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-cyan-300">
+                          <Tv className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <strong className="text-white text-xs sm:text-sm block">Living Room TV Display Screen</strong>
+                          <span className="text-[11px] text-slate-300">Open on Smart TV, projector, or second tab so players can watch:</span>
+                        </div>
                       </div>
-                      <input
-                        type="text"
-                        value={teamNames[idx]}
-                        onChange={(e) => {
-                          const updated = [...teamNames];
-                          updated[idx] = e.target.value;
-                          setTeamNames(updated);
-                        }}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white font-semibold outline-none focus:border-[#ffcc00]"
-                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const url = new URL(window.location.href);
+                            url.searchParams.set('role', 'tv');
+                            navigator.clipboard.writeText(url.toString());
+                          }}
+                          className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-lg cursor-pointer flex items-center gap-1 shadow"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copy TV Link</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const url = new URL(window.location.href);
+                            url.searchParams.set('role', 'tv');
+                            window.open(url.toString(), '_blank_tv', 'noopener,noreferrer');
+                          }}
+                          className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/50 text-xs font-semibold rounded-lg cursor-pointer flex items-center gap-1"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>Open TV Window</span>
+                        </button>
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleStartGame}
-                  className="w-full sm:w-auto py-3.5 px-8 bg-[#ffcc00] hover:bg-[#ffe066] text-[#030852] font-jeopardy-display text-xl uppercase tracking-wider rounded-xl shadow-xl transition-transform hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Play className="w-5 h-5 fill-current" /> Start Game Night
-                </button>
+                    {/* Number of Teams Selector */}
+                    <div className="mb-6">
+                      <span className="text-xs font-bold uppercase tracking-widest text-[#ffcc00] block mb-3">
+                        Select Number of Teams (2 to 6)
+                      </span>
+                      <div className="flex items-center justify-center gap-2">
+                        {[2, 3, 4, 5, 6].map((count) => (
+                          <button
+                            key={count}
+                            type="button"
+                            onClick={() => setTeamCount(count)}
+                            className={`w-12 h-12 rounded-xl font-jeopardy-display text-xl transition-all cursor-pointer ${
+                              teamCount === count
+                                ? 'bg-[#ffcc00] text-[#030852] font-bold shadow-lg scale-105 border-2 border-white'
+                                : 'bg-slate-800 text-slate-300 border border-slate-700 hover:border-slate-500'
+                            }`}
+                          >
+                            {count}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowHostSheetModal(true)}
-                  className="w-full sm:w-auto py-3.5 px-6 bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 font-semibold text-sm rounded-xl border border-emerald-700 flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                >
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" /> Host Answer Sheet
-                </button>
+                    {/* Team Name Inputs & Avatar Badges */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8 text-left">
+                      {Array.from({ length: teamCount }).map((_, idx) => {
+                        const color = DEFAULT_TEAMS_INFO[idx % DEFAULT_TEAMS_INFO.length];
+                        return (
+                          <div key={idx} className="bg-[#02052c] border border-slate-700 rounded-xl p-3">
+                            <div className="flex items-center justify-between mb-1">
+                              <label
+                                style={{ color: color.border }}
+                                className="text-xs font-bold uppercase tracking-wider block"
+                              >
+                                Team {idx + 1}
+                              </label>
+                              <span className="text-base select-none">{color.avatar}</span>
+                            </div>
+                            <input
+                              type="text"
+                              value={teamNames[idx]}
+                              onChange={(e) => {
+                                const updated = [...teamNames];
+                                updated[idx] = e.target.value;
+                                setTeamNames(updated);
+                              }}
+                              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white font-semibold outline-none focus:border-[#ffcc00]"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowAiQuestionModal(true)}
-                  className="w-full sm:w-auto py-3.5 px-6 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white font-semibold text-sm rounded-xl shadow-lg border border-purple-400/40 flex items-center justify-center gap-2 transition-transform hover:-translate-y-0.5 cursor-pointer"
-                >
-                  <Sparkles className="w-4 h-4 text-amber-300" /> AI Trivia Generator
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+                    {/* Action Buttons */}
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={handleStartGame}
+                        className="w-full sm:w-auto py-3.5 px-8 bg-[#ffcc00] hover:bg-[#ffe066] text-[#030852] font-jeopardy-display text-xl uppercase tracking-wider rounded-xl shadow-xl transition-transform hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <Play className="w-5 h-5 fill-current" /> Start Game Night
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowHostSheetModal(true)}
+                        className="w-full sm:w-auto py-3.5 px-6 bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 font-semibold text-sm rounded-xl border border-emerald-700 flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                      >
+                        <ShieldCheck className="w-4 h-4 text-emerald-400" /> Host Answer Sheet
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowAiQuestionModal(true)}
+                        className="w-full sm:w-auto py-3.5 px-6 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white font-semibold text-sm rounded-xl shadow-lg border border-purple-400/40 flex items-center justify-center gap-2 transition-transform hover:-translate-y-0.5 cursor-pointer"
+                      >
+                        <Sparkles className="w-4 h-4 text-amber-300" /> AI Trivia Generator
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            )}
 
         {/* PHASE 2: MAIN JEOPARDY BOARD */}
         {phase === 'BOARD' && (

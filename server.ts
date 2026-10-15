@@ -17,9 +17,383 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: '10mb' }));
 
 // =============================================================================
+import { INITIAL_ANIME_DATA } from './src/data/animeJeopardyData.ts';
+import { CURATED_FEUD_GAMES } from './src/data/curatedFeudData.ts';
+
+// =============================================================================
 // Real-time Multi-Device Screen Synchronization (TV Display <-> Host Controller)
 // =============================================================================
+interface ServerGameState {
+  version: number;
+  gameMode: 'JEOPARDY' | 'FEUD';
+  phase: 'SETUP' | 'BOARD' | 'FINAL_JEOPARDY' | 'PODIUM';
+  teams: any[];
+  gameData: any;
+  usedClues: string[];
+  activeClueData: any;
+  isDailyDoubleActive: boolean;
+  feudState: {
+    game: any;
+    roundIdx: number;
+    revealedAnswerIds: string[];
+    roundBank: number;
+    strikes: number;
+    activePlayingTeamIdx: number | null;
+    showFastMoneyModal: boolean;
+  };
+  fastMoneyState: {
+    stage: 'PLAYER1' | 'PLAYER2' | 'REVEAL' | 'RESULTS';
+    activePlayer: 1 | 2;
+    activeQIndex: number;
+    timerSeconds: number;
+    isTimerRunning: boolean;
+    player1Answers: any[];
+    player2Answers: any[];
+    revealedPlayer1: boolean[];
+    revealedPlayer2: boolean[];
+  };
+  lastUpdated: number;
+}
+
+const DEFAULT_INITIAL_TEAMS = [
+  { id: 1, name: 'Team Straw Hat', score: 0, avatar: '🏴‍☠️', color: { bg: '#dc2626', border: '#f87171' } },
+  { id: 2, name: 'Team Z-Fighters', score: 0, avatar: '⚡', color: { bg: '#ea580c', border: '#fb923c' } },
+  { id: 3, name: 'Team Hidden Leaf', score: 0, avatar: '🍃', color: { bg: '#ca8a04', border: '#facc15' } }
+];
+
+let currentGameState: ServerGameState = {
+  version: 1,
+  gameMode: 'JEOPARDY',
+  phase: 'SETUP',
+  teams: DEFAULT_INITIAL_TEAMS,
+  gameData: INITIAL_ANIME_DATA,
+  usedClues: [],
+  activeClueData: null,
+  isDailyDoubleActive: false,
+  feudState: {
+    game: CURATED_FEUD_GAMES['anime-all-stars'],
+    roundIdx: 0,
+    revealedAnswerIds: [],
+    roundBank: 0,
+    strikes: 0,
+    activePlayingTeamIdx: null,
+    showFastMoneyModal: false
+  },
+  fastMoneyState: {
+    stage: 'PLAYER1',
+    activePlayer: 1,
+    activeQIndex: 0,
+    timerSeconds: 20,
+    isTimerRunning: false,
+    player1Answers: [],
+    player2Answers: [],
+    revealedPlayer1: [],
+    revealedPlayer2: []
+  },
+  lastUpdated: Date.now()
+};
+
 const sseClients: express.Response[] = [];
+
+// Helper to apply actions to server-authoritative state
+function applyActionToGameState(action: any) {
+  if (!action || !action.type) return;
+
+  switch (action.type) {
+    case 'SET_GAME_MODE':
+      if (action.mode) currentGameState.gameMode = action.mode;
+      break;
+
+    case 'START_GAME':
+      currentGameState.phase = 'BOARD';
+      if (action.teams && Array.isArray(action.teams) && action.teams.length > 0) {
+        currentGameState.teams = action.teams;
+      }
+      if (action.gameData && action.gameData.categories && action.gameData.categories.length > 0) {
+        currentGameState.gameData = action.gameData;
+      }
+      currentGameState.usedClues = [];
+      currentGameState.activeClueData = null;
+      currentGameState.isDailyDoubleActive = false;
+      break;
+
+    case 'OPEN_CLUE':
+      currentGameState.activeClueData = {
+        catIndex: action.catIndex,
+        clueIndex: action.clueIndex,
+        clue: action.clue,
+        categoryTitle: action.categoryTitle
+      };
+      currentGameState.isDailyDoubleActive = !!action.clue?.isDailyDouble;
+      break;
+
+    case 'DAILY_DOUBLE_REVEAL':
+      currentGameState.activeClueData = {
+        catIndex: action.catIndex,
+        clueIndex: action.clueIndex,
+        clue: action.clue,
+        categoryTitle: action.categoryTitle
+      };
+      currentGameState.isDailyDoubleActive = true;
+      break;
+
+    case 'DAILY_DOUBLE_CONFIRM_WAGER':
+      if (currentGameState.activeClueData?.clue) {
+        currentGameState.activeClueData.clue.value = action.wager;
+      }
+      currentGameState.isDailyDoubleActive = false;
+      break;
+
+    case 'AWARD_SCORE':
+      if (currentGameState.teams && Array.isArray(currentGameState.teams)) {
+        currentGameState.teams = currentGameState.teams.map((t: any) =>
+          t.id === action.teamId ? { ...t, score: (t.score || 0) + (action.delta || 0) } : t
+        );
+      }
+      break;
+
+    case 'UPDATE_TEAMS':
+      if (action.teams && Array.isArray(action.teams)) {
+        currentGameState.teams = action.teams;
+      }
+      break;
+
+    case 'SET_GAME_DATA':
+      if (action.gameData && action.gameData.categories) {
+        currentGameState.gameData = action.gameData;
+        currentGameState.usedClues = [];
+        currentGameState.activeClueData = null;
+      }
+      break;
+
+    case 'CLOSE_CLUE':
+      if (currentGameState.activeClueData && currentGameState.gameData?.categories) {
+        const cat = currentGameState.gameData.categories[currentGameState.activeClueData.catIndex];
+        if (cat) {
+          const key = `${cat.id}-${currentGameState.activeClueData.clueIndex}`;
+          if (!currentGameState.usedClues.includes(key)) {
+            currentGameState.usedClues.push(key);
+          }
+        }
+      }
+      currentGameState.activeClueData = null;
+      currentGameState.isDailyDoubleActive = false;
+      break;
+
+    case 'GO_TO_FINAL_JEOPARDY':
+      currentGameState.phase = 'FINAL_JEOPARDY';
+      currentGameState.activeClueData = null;
+      break;
+
+    case 'FINISH_GAME':
+      currentGameState.phase = 'PODIUM';
+      if (action.finalTeams) currentGameState.teams = action.finalTeams;
+      break;
+
+    case 'RESET_GAME':
+      currentGameState.phase = 'SETUP';
+      currentGameState.usedClues = [];
+      currentGameState.activeClueData = null;
+      currentGameState.isDailyDoubleActive = false;
+      currentGameState.feudState = {
+        game: CURATED_FEUD_GAMES['anime-all-stars'],
+        roundIdx: 0,
+        revealedAnswerIds: [],
+        roundBank: 0,
+        strikes: 0,
+        activePlayingTeamIdx: null,
+        showFastMoneyModal: false
+      };
+      currentGameState.fastMoneyState = {
+        stage: 'PLAYER1',
+        activePlayer: 1,
+        activeQIndex: 0,
+        timerSeconds: 20,
+        isTimerRunning: false,
+        player1Answers: [],
+        player2Answers: [],
+        revealedPlayer1: [],
+        revealedPlayer2: []
+      };
+      break;
+
+    case 'SYNC_FULL_STATE':
+      if (action.state) {
+        // Guard against overwriting valid gameData with empty categories
+        const safeGameData =
+          action.state.gameData?.categories?.length > 0
+            ? action.state.gameData
+            : currentGameState.gameData;
+
+        currentGameState = {
+          ...currentGameState,
+          ...action.state,
+          gameData: safeGameData,
+          lastUpdated: Date.now()
+        };
+      }
+      break;
+
+    // FAMILY FEUD ACTIONS
+    case 'FEUD_SET_ROUND':
+      currentGameState.feudState.roundIdx = action.roundIdx;
+      currentGameState.feudState.revealedAnswerIds = [];
+      currentGameState.feudState.roundBank = 0;
+      currentGameState.feudState.strikes = 0;
+      break;
+
+    case 'FEUD_TOGGLE_ANSWER':
+      if (action.revealed) {
+        if (!currentGameState.feudState.revealedAnswerIds.includes(action.answerId)) {
+          currentGameState.feudState.revealedAnswerIds.push(action.answerId);
+        }
+      } else {
+        currentGameState.feudState.revealedAnswerIds = currentGameState.feudState.revealedAnswerIds.filter(
+          (id: string) => id !== action.answerId
+        );
+      }
+      currentGameState.feudState.roundBank = action.newBank;
+      break;
+
+    case 'FEUD_REVEAL_ALL':
+      currentGameState.feudState.revealedAnswerIds = action.allIds || [];
+      currentGameState.feudState.roundBank = action.newBank;
+      break;
+
+    case 'FEUD_STRIKE':
+      currentGameState.feudState.strikes = action.strikes;
+      break;
+
+    case 'FEUD_RESET_STRIKES':
+      currentGameState.feudState.strikes = 0;
+      break;
+
+    case 'FEUD_SET_PLAYING_TEAM':
+      currentGameState.feudState.activePlayingTeamIdx = action.teamIdx;
+      break;
+
+    case 'FEUD_AWARD_BANK':
+      if (action.updatedTeams) {
+        currentGameState.teams = action.updatedTeams;
+      }
+      currentGameState.feudState.roundBank = 0;
+      break;
+
+    case 'FEUD_APPLY_GAME':
+      if (action.game) {
+        currentGameState.feudState.game = action.game;
+        currentGameState.feudState.roundIdx = 0;
+        currentGameState.feudState.revealedAnswerIds = [];
+        currentGameState.feudState.roundBank = 0;
+        currentGameState.feudState.strikes = 0;
+      }
+      break;
+
+    case 'FEUD_SYNC_STATE':
+      if (action.state) {
+        currentGameState.feudState = {
+          ...currentGameState.feudState,
+          ...action.state
+        };
+      }
+      break;
+
+    // FAST MONEY ACTIONS
+    case 'FAST_MONEY_OPEN':
+      currentGameState.feudState.showFastMoneyModal = true;
+      break;
+
+    case 'FAST_MONEY_CLOSE':
+      currentGameState.feudState.showFastMoneyModal = false;
+      break;
+
+    case 'FAST_MONEY_SET_STAGE':
+      currentGameState.fastMoneyState.stage = action.stage;
+      break;
+
+    case 'FAST_MONEY_SET_PLAYER':
+      currentGameState.fastMoneyState.activePlayer = action.player;
+      currentGameState.fastMoneyState.stage = action.player === 1 ? 'PLAYER1' : 'PLAYER2';
+      currentGameState.fastMoneyState.timerSeconds = action.timerSeconds;
+      currentGameState.fastMoneyState.isTimerRunning = false;
+      currentGameState.fastMoneyState.activeQIndex = 0;
+      break;
+
+    case 'FAST_MONEY_TIMER':
+      currentGameState.fastMoneyState.isTimerRunning = action.isRunning;
+      currentGameState.fastMoneyState.timerSeconds = action.timerSeconds;
+      break;
+
+    case 'FAST_MONEY_SET_ACTIVE_Q':
+      currentGameState.fastMoneyState.activeQIndex = action.qIndex;
+      break;
+
+    case 'FAST_MONEY_SET_ANSWER': {
+      const { player, qIndex, text, points } = action;
+      if (player === 1) {
+        currentGameState.fastMoneyState.player1Answers[qIndex] = { text, points, passed: false };
+      } else {
+        currentGameState.fastMoneyState.player2Answers[qIndex] = { text, points, passed: false };
+      }
+      break;
+    }
+
+    case 'FAST_MONEY_REVEAL_ANSWER': {
+      const { player, qIndex } = action;
+      if (player === 1) {
+        currentGameState.fastMoneyState.revealedPlayer1[qIndex] = true;
+      } else {
+        currentGameState.fastMoneyState.revealedPlayer2[qIndex] = true;
+      }
+      break;
+    }
+
+    case 'FAST_MONEY_WIN':
+      currentGameState.fastMoneyState.stage = 'RESULTS';
+      break;
+
+    case 'FAST_MONEY_SYNC_STATE':
+      if (action.state) {
+        currentGameState.fastMoneyState = {
+          ...currentGameState.fastMoneyState,
+          ...action.state
+        };
+      }
+      break;
+  }
+
+  currentGameState.lastUpdated = Date.now();
+}
+
+app.get('/api/sync/state', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
+  return res.json({ ok: true, state: currentGameState });
+});
+
+app.post('/api/sync/state', (req, res) => {
+  const { state } = req.body;
+  if (state) {
+    currentGameState = {
+      ...currentGameState,
+      ...state,
+      lastUpdated: Date.now()
+    };
+
+    const envelope = {
+      type: 'SYNC_FULL_STATE',
+      state: currentGameState,
+      _actionId: `srv-${Date.now()}`,
+      _timestamp: Date.now()
+    };
+    const payload = `data: ${JSON.stringify(envelope)}\n\n`;
+    sseClients.forEach((client) => {
+      try {
+        client.write(payload);
+      } catch {}
+    });
+  }
+  return res.json({ ok: true, state: currentGameState });
+});
 
 app.get('/api/sync/events', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
@@ -29,6 +403,17 @@ app.get('/api/sync/events', (req, res) => {
   res.flushHeaders();
 
   sseClients.push(res);
+
+  // Immediately send initial snapshot of game state so late-joining screens/TVs sync instantly!
+  try {
+    const initialAction = {
+      type: 'SYNC_FULL_STATE',
+      state: currentGameState,
+      _isInitialSnapshot: true,
+      _timestamp: Date.now()
+    };
+    res.write(`data: ${JSON.stringify(initialAction)}\n\n`);
+  } catch {}
 
   // Keep alive ping every 25 seconds
   const pingInterval = setInterval(() => {
@@ -49,6 +434,9 @@ app.post('/api/sync/action', (req, res) => {
   if (!action || !action.type) {
     return res.status(400).json({ error: 'Invalid action payload' });
   }
+
+  // Update authoritative server state
+  applyActionToGameState(action);
 
   const payload = `data: ${JSON.stringify(action)}\n\n`;
   sseClients.forEach((client) => {

@@ -227,11 +227,86 @@ export const FamilyFeudBoard: React.FC<FamilyFeudBoardProps> = ({
           setRoundBank(0);
           setStrikes(0);
           break;
+
+        case 'FAST_MONEY_OPEN':
+          setShowFastMoneyModal(true);
+          break;
+
+        case 'FAST_MONEY_CLOSE':
+          setShowFastMoneyModal(false);
+          break;
+
+        case 'FEUD_SYNC_STATE': {
+          const s = action.state;
+          if (s) {
+            if (s.game) setCurrentGame(s.game);
+            if (s.roundIdx !== undefined) setCurrentRoundIdx(s.roundIdx);
+            if (s.revealedAnswerIds) setRevealedAnswerIds(new Set(s.revealedAnswerIds));
+            if (s.roundBank !== undefined) setRoundBank(s.roundBank);
+            if (s.strikes !== undefined) setStrikes(s.strikes);
+            if (s.activePlayingTeamIdx !== undefined) setActivePlayingTeamIdx(s.activePlayingTeamIdx);
+            if (s.showFastMoneyModal !== undefined) setShowFastMoneyModal(s.showFastMoneyModal);
+          }
+          break;
+        }
+
+        case 'SYNC_FULL_STATE': {
+          const s = action.state;
+          if (s && s.feudState) {
+            const fs = s.feudState;
+            if (fs.game) setCurrentGame(fs.game);
+            if (fs.roundIdx !== undefined) setCurrentRoundIdx(fs.roundIdx);
+            if (fs.revealedAnswerIds) setRevealedAnswerIds(new Set(fs.revealedAnswerIds));
+            if (fs.roundBank !== undefined) setRoundBank(fs.roundBank);
+            if (fs.strikes !== undefined) setStrikes(fs.strikes);
+            if (fs.activePlayingTeamIdx !== undefined) setActivePlayingTeamIdx(fs.activePlayingTeamIdx);
+            if (fs.showFastMoneyModal !== undefined) setShowFastMoneyModal(fs.showFastMoneyModal);
+          }
+          break;
+        }
+
+        case 'REQUEST_STATE': {
+          if (role === 'host') {
+            gameSync.broadcast({
+              type: 'FEUD_SYNC_STATE',
+              state: {
+                game: currentGame,
+                roundIdx: currentRoundIdx,
+                revealedAnswerIds: Array.from(revealedAnswerIds),
+                roundBank,
+                strikes,
+                activePlayingTeamIdx,
+                showFastMoneyModal
+              }
+            });
+          }
+          break;
+        }
       }
     });
 
     return () => unsubscribe();
-  }, [onUpdateTeams]);
+  }, [role, currentGame, currentRoundIdx, revealedAnswerIds, roundBank, strikes, activePlayingTeamIdx, showFastMoneyModal, onUpdateTeams]);
+
+  // Host broadcasts current Feud state when entering the mode
+  useEffect(() => {
+    if (role === 'host') {
+      gameSync.broadcast({
+        type: 'FEUD_SYNC_STATE',
+        state: {
+          game: currentGame,
+          roundIdx: currentRoundIdx,
+          revealedAnswerIds: Array.from(revealedAnswerIds),
+          roundBank,
+          strikes,
+          activePlayingTeamIdx,
+          showFastMoneyModal
+        }
+      });
+    } else {
+      gameSync.fetchServerState();
+    }
+  }, [role]);
 
   return (
     <div className="flex flex-col flex-1 w-full max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-3 gap-3">
@@ -493,7 +568,10 @@ export const FamilyFeudBoard: React.FC<FamilyFeudBoardProps> = ({
 
             <button
               type="button"
-              onClick={() => setShowFastMoneyModal(true)}
+              onClick={() => {
+                setShowFastMoneyModal(true);
+                gameSync.broadcast({ type: 'FAST_MONEY_OPEN' });
+              }}
               className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 text-[#02052c] font-black rounded-lg cursor-pointer shadow flex items-center gap-1"
             >
               <Zap className="w-3.5 h-3.5" />
@@ -534,7 +612,10 @@ export const FamilyFeudBoard: React.FC<FamilyFeudBoardProps> = ({
           questions={currentGame.fastMoney}
           teamName={team1.score >= team2.score ? team1.name : team2.name}
           role={role}
-          onClose={() => setShowFastMoneyModal(false)}
+          onClose={() => {
+            setShowFastMoneyModal(false);
+            gameSync.broadcast({ type: 'FAST_MONEY_CLOSE' });
+          }}
           onAwardPoints={(pts) => {
             const winnerIdx = team1.score >= team2.score ? 0 : 1;
             const updated = [...teams];
