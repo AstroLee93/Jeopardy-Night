@@ -88,6 +88,7 @@ export type SyncAction =
   | { type: 'GO_TO_FINAL_JEOPARDY' }
   | { type: 'FINISH_GAME'; finalTeams: any[] }
   | { type: 'RESET_GAME' }
+  | { type: 'RESET_SCORES' }
   | { type: 'FEUD_SET_ROUND'; roundIdx: number }
   | { type: 'FEUD_TOGGLE_ANSWER'; answerId: string; revealed: boolean; points: number; newBank: number }
   | { type: 'FEUD_REVEAL_ALL'; allIds: string[]; newBank: number }
@@ -126,6 +127,7 @@ class GameSyncManager {
   private pendingActions: SyncAction[] = [];
   private seenActionIds: Set<string> = new Set();
   public connectionStatus: SyncConnectionStatus = 'disconnected';
+  private pollInterval: any = null;
 
   constructor() {
     // Check URL query param first: ?role=tv or ?role=host takes strict priority!
@@ -135,10 +137,18 @@ class GameSyncManager {
       if (urlRole === 'tv' || urlRole === 'host') {
         this.currentRole = urlRole;
       } else {
-        const saved = localStorage.getItem('anime_jeopardy_screen_role') as ScreenRole;
-        if (saved === 'tv' || saved === 'host') {
-          this.currentRole = saved;
-        }
+        // Tab-isolated sessionStorage ensures TV tab and Host tab on same browser never overwrite each other!
+        try {
+          const sessionRole = sessionStorage.getItem('anime_jeopardy_screen_role') as ScreenRole;
+          if (sessionRole === 'tv' || sessionRole === 'host') {
+            this.currentRole = sessionRole;
+          } else {
+            const saved = localStorage.getItem('anime_jeopardy_screen_role') as ScreenRole;
+            if (saved === 'tv' || saved === 'host') {
+              this.currentRole = saved;
+            }
+          }
+        } catch {}
       }
 
       // Initialize BroadcastChannel for 0ms same-machine sync
@@ -163,6 +173,13 @@ class GameSyncManager {
 
       // Immediately fetch authoritative server state on startup
       this.fetchServerState();
+
+      // Periodic auto-sync poll (every 3 seconds) ensures TV stays synchronized even if tab slept
+      this.pollInterval = setInterval(() => {
+        if (this.currentRole === 'tv') {
+          this.fetchServerState();
+        }
+      }, 3000);
     }
   }
 
@@ -190,13 +207,14 @@ class GameSyncManager {
   public setRole(role: ScreenRole) {
     this.currentRole = role;
     if (typeof window !== 'undefined') {
-      localStorage.setItem('anime_jeopardy_screen_role', role);
+      try {
+        sessionStorage.setItem('anime_jeopardy_screen_role', role);
+      } catch {}
       // Update URL without reload for easy sharing
       const url = new URL(window.location.href);
       url.searchParams.set('role', role);
       window.history.replaceState({}, '', url.toString());
     }
-    this.broadcast({ type: 'SET_ROLE', role });
   }
 
   public getRole(): ScreenRole {
@@ -307,6 +325,7 @@ class GameSyncManager {
       this.sseSource.onopen = () => {
         this.connectionStatus = 'connected';
         this.notifyStatusListeners('connected');
+        this.fetchServerState();
       };
 
       this.sseSource.onmessage = (event) => {

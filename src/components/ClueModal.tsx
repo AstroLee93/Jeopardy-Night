@@ -41,7 +41,7 @@ export const ClueModal: React.FC<ClueModalProps> = ({
   onAwardScore,
   onClose
 }) => {
-  const [isAnswerRevealed, setIsAnswerRevealed] = useState(false);
+  const [isAnswerRevealed, setIsAnswerRevealed] = useState<boolean>(Boolean((clue as any)?.isAnswerRevealedOnTv));
   const [showHostPrivateAnswer, setShowHostPrivateAnswer] = useState(true);
   const [imgError, setImgError] = useState(false);
 
@@ -672,7 +672,7 @@ export const ClueModal: React.FC<ClueModalProps> = ({
 
           {/* Clue Prompt Text */}
           <div className="font-jeopardy-serif text-white text-xl sm:text-2xl md:text-3xl lg:text-4xl leading-relaxed sm:leading-relaxed max-w-3xl drop-shadow-lg px-2">
-            {clue.clue}
+            {clue.clue || (clue as any).question || (clue as any).prompt || 'Question Prompt'}
           </div>
 
           {/* Public Answer Reveal Box (Visible on both TV and Host when revealed) */}
@@ -682,7 +682,7 @@ export const ClueModal: React.FC<ClueModalProps> = ({
                 📢 Revealed to All Players
               </span>
               <div className="font-jeopardy-serif text-white text-xl sm:text-2xl md:text-3xl font-bold">
-                {clue.answer}
+                {clue.answer || (clue as any).solution || (clue as any).correct_answer || ''}
               </div>
             </div>
           )}
@@ -704,7 +704,7 @@ export const ClueModal: React.FC<ClueModalProps> = ({
                 </div>
                 {showHostPrivateAnswer ? (
                   <div className="font-jeopardy-serif text-lg sm:text-xl font-bold text-emerald-300 pl-5">
-                    {clue.answer}
+                    {clue.answer || (clue as any).solution || (clue as any).correct_answer || ''}
                   </div>
                 ) : (
                   <div className="text-xs text-slate-500 italic pl-5">Answer hidden to prevent peeking</div>

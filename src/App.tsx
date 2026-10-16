@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { INITIAL_ANIME_DATA, JeopardyGameData, ClueItem } from './data/animeJeopardyData';
 import { JeopardyBoard } from './components/JeopardyBoard';
 import { ScoreBoard, Team } from './components/ScoreBoard';
@@ -137,7 +137,32 @@ export default function App() {
     }
   };
 
-  // Subscribe to Multi-Screen Cross-Device Events
+  // Keep a stable ref of the latest state to avoid re-subscribing and dropping events
+  const stateRef = useRef({
+    gameMode,
+    phase,
+    teams,
+    gameData,
+    usedClues,
+    activeClueData,
+    isDailyDoubleActive,
+    role
+  });
+
+  useEffect(() => {
+    stateRef.current = {
+      gameMode,
+      phase,
+      teams,
+      gameData,
+      usedClues,
+      activeClueData,
+      isDailyDoubleActive,
+      role
+    };
+  });
+
+  // Subscribe to Multi-Screen Cross-Device Events once on mount (NEVER drop events during re-renders!)
   useEffect(() => {
     const unsubscribe = gameSync.subscribe((action) => {
       switch (action.type) {
@@ -147,7 +172,9 @@ export default function App() {
             if (s.gameMode && (s.gameMode === 'JEOPARDY' || s.gameMode === 'FEUD')) {
               setGameMode(s.gameMode);
             }
-            if (s.phase) setPhase(s.phase);
+            if (s.phase) {
+              setPhase(s.phase);
+            }
             if (s.teams && Array.isArray(s.teams) && s.teams.length > 0) {
               setTeams(s.teams);
             }
@@ -171,22 +198,28 @@ export default function App() {
 
         case 'REQUEST_STATE': {
           // If this is the active Host, share complete full state with newly connected TV screens
-          if (role === 'host') {
+          const cur = stateRef.current;
+          if (cur.role === 'host') {
             gameSync.broadcast({
               type: 'SYNC_FULL_STATE',
               state: {
-                gameMode,
-                phase,
-                teams,
-                gameData,
-                usedClues: Array.from(usedClues),
-                activeClueData,
-                isDailyDoubleActive
+                gameMode: cur.gameMode,
+                phase: cur.phase,
+                teams: cur.teams,
+                gameData: cur.gameData,
+                usedClues: Array.from(cur.usedClues),
+                activeClueData: cur.activeClueData,
+                isDailyDoubleActive: cur.isDailyDoubleActive
               }
             });
           }
           break;
         }
+
+        case 'RESET_SCORES':
+          setTeams((prev) => prev.map((t) => ({ ...t, score: 0 })));
+          soundFx.playCluePing();
+          break;
 
         case 'UPDATE_TEAMS':
           if (action.teams && Array.isArray(action.teams)) {
@@ -226,8 +259,10 @@ export default function App() {
             clue: action.clue,
             categoryTitle: action.categoryTitle
           });
+          // Auto-advance TV to BOARD if it was still on the waiting lobby
+          setPhase((prev) => (prev === 'SETUP' ? 'BOARD' : prev));
           if (action.clue?.isDailyDouble) {
-            soundFx.playDailyDouble(role === 'tv');
+            soundFx.playDailyDouble(stateRef.current.role === 'tv');
             setIsDailyDoubleActive(true);
           } else {
             soundFx.playCluePing();
@@ -242,23 +277,31 @@ export default function App() {
             clue: action.clue,
             categoryTitle: action.categoryTitle
           });
+          setPhase((prev) => (prev === 'SETUP' ? 'BOARD' : prev));
           setIsDailyDoubleActive(true);
           // Trigger high-impact Daily Double fanfare specifically on the TV display
           soundFx.playDailyDouble(true);
           break;
 
         case 'AWARD_SCORE':
-          setTeams(prev =>
-            prev.map(t => (t.id === action.teamId ? { ...t, score: t.score + action.delta } : t))
+          setTeams((prev) =>
+            prev.map((t) => (t.id === action.teamId ? { ...t, score: t.score + action.delta } : t))
           );
           break;
 
         case 'CLOSE_CLUE':
-          if (activeClueData) {
-            const key = `${gameData.categories[activeClueData.catIndex].id}-${activeClueData.clueIndex}`;
-            setUsedClues(prev => new Set(prev).add(key));
-          }
           setActiveClueData(null);
+          setIsDailyDoubleActive(false);
+          {
+            const active = stateRef.current.activeClueData;
+            if (active) {
+              const cat = stateRef.current.gameData.categories[active.catIndex];
+              if (cat) {
+                const key = `${cat.id}-${active.clueIndex}`;
+                setUsedClues((prev) => new Set(prev).add(key));
+              }
+            }
+          }
           break;
 
         case 'GO_TO_FINAL_JEOPARDY':
@@ -279,12 +322,14 @@ export default function App() {
           setPhase('SETUP');
           setUsedClues(new Set());
           setActiveClueData(null);
+          setIsDailyDoubleActive(false);
+          setTeams((prev) => prev.map((t) => ({ ...t, score: 0 })));
           break;
       }
     });
 
     return () => unsubscribe();
-  }, [activeClueData, gameData, role, phase, teams, gameMode, isDailyDoubleActive, usedClues]);
+  }, []);
 
   // Immediately request active game snapshot on mount (vital for TV screens connecting after Host starts)
   useEffect(() => {
@@ -571,6 +616,69 @@ export default function App() {
     gameSync.broadcast({ type: 'FINISH_GAME', finalTeams });
   };
 
+  // Explicitly clear/reset all team scores to $0 (synced across all screens)
+  const handleResetScores = () => {
+    soundFx.initCtx();
+    const zeroed = teams.map((t) => ({ ...t, score: 0 }));
+    setTeams(zeroed);
+    soundFx.playCluePing();
+    gameSync.broadcast({ type: 'RESET_SCORES' });
+    gameSync.broadcast({ type: 'UPDATE_TEAMS', teams: zeroed });
+    gameSync.broadcast({
+      type: 'SYNC_FULL_STATE',
+      state: {
+        gameMode,
+        phase,
+        teams: zeroed,
+        gameData,
+        usedClues: Array.from(usedClues),
+        activeClueData,
+        isDailyDoubleActive
+      }
+    });
+  };
+
+  // Play again with same teams & reset scores to $0 immediately
+  const handlePlayAgainSameTeams = () => {
+    soundFx.initCtx();
+    const zeroed = teams.map((t) => ({ ...t, score: 0 }));
+    setTeams(zeroed);
+    setUsedClues(new Set());
+    setActiveClueData(null);
+    setIsDailyDoubleActive(false);
+    setPhase('BOARD');
+    soundFx.playCorrect();
+
+    gameSync.broadcast({ type: 'RESET_SCORES' });
+    gameSync.broadcast({ type: 'UPDATE_TEAMS', teams: zeroed });
+    gameSync.broadcast({
+      type: 'SYNC_FULL_STATE',
+      state: {
+        gameMode: 'JEOPARDY',
+        phase: 'BOARD',
+        teams: zeroed,
+        gameData,
+        usedClues: [],
+        activeClueData: null,
+        isDailyDoubleActive: false
+      }
+    });
+  };
+
+  // Full reset back to Setup with $0 scores
+  const handleFullResetToSetup = () => {
+    soundFx.stopThinkMusic();
+    soundFx.stopSpeaking();
+    const zeroed = teams.map((t) => ({ ...t, score: 0 }));
+    setTeams(zeroed);
+    setUsedClues(new Set());
+    setActiveClueData(null);
+    setIsDailyDoubleActive(false);
+    setPhase('SETUP');
+    handleClearSavedGame();
+    gameSync.broadcast({ type: 'RESET_GAME' });
+  };
+
   return (
     <div
       className={`min-h-screen bg-[#02052c] text-white flex flex-col justify-between selection:bg-[#ffcc00] selection:text-[#030852] ${
@@ -793,20 +901,14 @@ export default function App() {
             <span className="hidden sm:inline">TV</span>
           </button>
 
-          {/* Reset */}
+          {/* Reset Game & Clear Scores */}
           <button
             onClick={() => {
-              if (confirm('Start a new game session and reset board?')) {
-                soundFx.stopThinkMusic();
-                soundFx.stopSpeaking();
-                setPhase('SETUP');
-                setUsedClues(new Set());
-                setActiveClueData(null);
-                handleClearSavedGame();
-                gameSync.broadcast({ type: 'RESET_GAME' });
+              if (confirm('Start a new game session and reset board? All scores will be cleared to $0.')) {
+                handleFullResetToSetup();
               }
             }}
-            title="Reset Game"
+            title="Reset Game & Clear Scores to $0"
             className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1 text-xs font-semibold transition-colors cursor-pointer"
           >
             <RotateCcw className="w-4 h-4" />
@@ -876,6 +978,10 @@ export default function App() {
                   gameSubtitle={gameData.subtitle}
                   onSwitchToHost={() => handleRoleChange('host')}
                   onCheckSync={() => gameSync.fetchServerState()}
+                  onEnterBoard={() => {
+                    setPhase('BOARD');
+                    gameSync.fetchServerState();
+                  }}
                 />
               ) : (
                 <div className="flex-1 flex items-center justify-center py-6">
@@ -1080,13 +1186,9 @@ export default function App() {
         {phase === 'PODIUM' && (
           <PodiumScreen
             teams={teams}
-            onRestart={() => {
-              setUsedClues(new Set());
-              setActiveClueData(null);
-              setPhase('SETUP');
-              handleClearSavedGame();
-              gameSync.broadcast({ type: 'RESET_GAME' });
-            }}
+            onRestart={handleFullResetToSetup}
+            onPlayAgainSameTeams={handlePlayAgainSameTeams}
+            onResetScores={handleResetScores}
           />
         )}
           </>
@@ -1144,6 +1246,19 @@ export default function App() {
           onSaveTeams={(updated) => {
             setTeams(updated);
             setShowScoreEditorModal(false);
+            gameSync.broadcast({ type: 'UPDATE_TEAMS', teams: updated });
+            gameSync.broadcast({
+              type: 'SYNC_FULL_STATE',
+              state: {
+                gameMode,
+                phase,
+                teams: updated,
+                gameData,
+                usedClues: Array.from(usedClues),
+                activeClueData,
+                isDailyDoubleActive
+              }
+            });
           }}
           onClose={() => setShowScoreEditorModal(false)}
         />
@@ -1181,7 +1296,23 @@ export default function App() {
       {showEditorModal && (
         <QuestionEditorModal
           gameData={gameData}
-          onSaveData={(updated) => setGameData(updated)}
+          onSaveData={(updated) => {
+            setGameData(updated);
+            setShowEditorModal(false);
+            gameSync.broadcast({ type: 'SET_GAME_DATA', gameData: updated });
+            gameSync.broadcast({
+              type: 'SYNC_FULL_STATE',
+              state: {
+                gameMode,
+                phase,
+                teams,
+                gameData: updated,
+                usedClues: Array.from(usedClues),
+                activeClueData,
+                isDailyDoubleActive
+              }
+            });
+          }}
           onClose={() => setShowEditorModal(false)}
         />
       )}

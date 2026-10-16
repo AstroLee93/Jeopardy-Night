@@ -150,21 +150,37 @@ export const ScoreEditorModal: React.FC<ScoreEditorModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-slate-800 pt-3 mt-4 flex items-center justify-end gap-2">
+        <div className="border-t border-slate-800 pt-3 mt-4 flex items-center justify-between flex-wrap gap-2">
           <button
             type="button"
-            onClick={onClose}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-lg transition-colors cursor-pointer"
+            onClick={() => {
+              if (confirm('Are you sure you want to reset all team scores to $0?')) {
+                setEditedTeams((prev) => prev.map((t) => ({ ...t, score: 0 })));
+              }
+            }}
+            className="px-3.5 py-2 bg-red-950/70 hover:bg-red-900 text-red-300 border border-red-800 font-semibold text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+            title="Clear all scores to $0"
           >
-            Cancel
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset All Scores to $0</span>
           </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            className="px-5 py-2 bg-[#ffcc00] hover:bg-[#ffe066] text-[#030852] font-bold text-xs sm:text-sm rounded-lg flex items-center gap-1.5 shadow-md transition-colors cursor-pointer"
-          >
-            <Check className="w-4 h-4" /> Save Scores
-          </button>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-lg transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="px-5 py-2 bg-[#ffcc00] hover:bg-[#ffe066] text-[#030852] font-bold text-xs sm:text-sm rounded-lg flex items-center gap-1.5 shadow-md transition-colors cursor-pointer"
+            >
+              <Check className="w-4 h-4" /> Save Scores
+            </button>
+          </div>
         </div>
       </div>
     </div>

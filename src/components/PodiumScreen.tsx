@@ -1,20 +1,36 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Team } from './ScoreBoard';
 import { soundFx } from '../utils/audioSynth';
-import { Trophy, RotateCcw } from 'lucide-react';
+import { Trophy, RotateCcw, Sparkles, Play, Check } from 'lucide-react';
 
 interface PodiumScreenProps {
   teams: Team[];
   onRestart: () => void;
+  onPlayAgainSameTeams?: () => void;
+  onResetScores?: () => void;
 }
 
-export const PodiumScreen: React.FC<PodiumScreenProps> = ({ teams, onRestart }) => {
+export const PodiumScreen: React.FC<PodiumScreenProps> = ({
+  teams,
+  onRestart,
+  onPlayAgainSameTeams,
+  onResetScores
+}) => {
+  const [scoresClearedFeedback, setScoresClearedFeedback] = useState(false);
   const sorted = [...teams].sort((a, b) => b.score - a.score);
-  const winner = sorted[0];
+  const winner = sorted[0] || { id: 1, name: 'Champion', score: 0, avatar: '👑' };
 
   useEffect(() => {
     soundFx.playCorrect();
   }, []);
+
+  const handleManualResetScores = () => {
+    if (onResetScores) {
+      onResetScores();
+      setScoresClearedFeedback(true);
+      setTimeout(() => setScoresClearedFeedback(false), 2500);
+    }
+  };
 
   return (
     <div className="flex-1 flex items-center justify-center p-4">
@@ -26,15 +42,22 @@ export const PodiumScreen: React.FC<PodiumScreenProps> = ({ teams, onRestart }) 
         </h2>
         
         <h1 className="font-jeopardy-display text-4xl sm:text-6xl text-[#ffcc00] uppercase tracking-wider drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] mb-2">
-          {winner.name}
+          {winner.avatar || '👑'} {winner.name}
         </h1>
 
-        <div className="text-2xl sm:text-3xl font-jeopardy-display text-white mb-8">
+        <div className="text-2xl sm:text-3xl font-jeopardy-display text-white mb-6">
           Final Score: <span className="text-[#ffcc00]">${winner.score.toLocaleString()}</span>
         </div>
 
+        {scoresClearedFeedback && (
+          <div className="mb-4 py-2 px-4 bg-emerald-900/90 border border-emerald-400 text-emerald-200 text-xs font-bold rounded-xl flex items-center justify-center gap-2 animate-in fade-in">
+            <Check className="w-4 h-4 text-emerald-400" />
+            <span>All team scores have been reset to $0 across all screens!</span>
+          </div>
+        )}
+
         {/* Podium Pillars */}
-        <div className="flex items-end justify-center gap-3 sm:gap-6 my-6 min-h-[200px]">
+        <div className="flex items-end justify-center gap-3 sm:gap-6 my-6 min-h-[190px]">
           {/* 2nd Place */}
           {sorted[1] && (
             <div className="w-24 sm:w-32 bg-gradient-to-b from-slate-400/20 to-slate-800 border-2 border-slate-300 rounded-t-xl p-3 flex flex-col items-center h-36 justify-between shadow-lg">
@@ -74,15 +97,17 @@ export const PodiumScreen: React.FC<PodiumScreenProps> = ({ teams, onRestart }) 
         </div>
 
         {/* All Team Scores Table */}
-        <div className="max-w-md mx-auto bg-black/40 border border-slate-700 rounded-xl p-3 mb-8">
+        <div className="max-w-md mx-auto bg-black/40 border border-slate-700 rounded-xl p-3 mb-6">
           <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
             Final Standings
           </div>
           <div className="space-y-1 text-sm">
             {sorted.map((t, idx) => (
               <div key={t.id} className="flex justify-between items-center py-1 border-b border-slate-800 last:border-none">
-                <span className="font-medium text-slate-300 truncate">
-                  #{idx + 1} {t.name}
+                <span className="font-medium text-slate-300 truncate flex items-center gap-1.5">
+                  <span>#{idx + 1}</span>
+                  <span>{t.avatar || ''}</span>
+                  <span>{t.name}</span>
                 </span>
                 <span className="font-jeopardy-display text-[#ffcc00] tabular-nums">
                   ${t.score.toLocaleString()}
@@ -92,13 +117,40 @@ export const PodiumScreen: React.FC<PodiumScreenProps> = ({ teams, onRestart }) 
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={onRestart}
-          className="inline-flex items-center gap-2 py-3 px-8 bg-[#ffcc00] hover:bg-[#ffe066] text-[#030852] font-jeopardy-display text-xl uppercase tracking-wider rounded-xl shadow-xl transition-transform hover:-translate-y-0.5 cursor-pointer"
-        >
-          <RotateCcw className="w-5 h-5" /> Start New Game
-        </button>
+        {/* Clear Scores & Restart Action Buttons */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          {onPlayAgainSameTeams && (
+            <button
+              type="button"
+              onClick={onPlayAgainSameTeams}
+              title="Keeps the current team names, clears scores to $0, and reloads fresh board"
+              className="w-full sm:w-auto py-3 px-6 bg-[#ffcc00] hover:bg-[#ffe066] text-[#030852] font-jeopardy-display text-lg uppercase tracking-wider rounded-xl shadow-xl transition-transform hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Play className="w-5 h-5 fill-current" /> Keep Teams & Play Again ($0)
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onRestart}
+            title="Clears all scores to $0 and returns to the game setup screen"
+            className="w-full sm:w-auto py-3 px-6 bg-slate-800 hover:bg-slate-700 text-white font-semibold text-sm rounded-xl border border-slate-600 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <RotateCcw className="w-4 h-4 text-amber-300" /> Start New Game (Reset Setup)
+          </button>
+
+          {onResetScores && (
+            <button
+              type="button"
+              onClick={handleManualResetScores}
+              title="Clears all scores back to $0 without leaving this screen"
+              className="w-full sm:w-auto py-3 px-4 bg-red-950/70 hover:bg-red-900 text-red-200 font-semibold text-xs rounded-xl border border-red-800 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span>🧹</span>
+              <span>Reset Scores to $0</span>
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

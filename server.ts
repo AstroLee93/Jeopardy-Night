@@ -190,11 +190,26 @@ function applyActionToGameState(action: any) {
       if (action.finalTeams) currentGameState.teams = action.finalTeams;
       break;
 
+    case 'RESET_SCORES':
+      if (currentGameState.teams && Array.isArray(currentGameState.teams)) {
+        currentGameState.teams = currentGameState.teams.map((t: any) => ({ ...t, score: 0 }));
+      }
+      break;
+
+    case 'REVEAL_ANSWER_ON_TV':
+      if (currentGameState.activeClueData) {
+        currentGameState.activeClueData.isAnswerRevealedOnTv = true;
+      }
+      break;
+
     case 'RESET_GAME':
       currentGameState.phase = 'SETUP';
       currentGameState.usedClues = [];
       currentGameState.activeClueData = null;
       currentGameState.isDailyDoubleActive = false;
+      if (currentGameState.teams && Array.isArray(currentGameState.teams)) {
+        currentGameState.teams = currentGameState.teams.map((t: any) => ({ ...t, score: 0 }));
+      }
       currentGameState.feudState = {
         game: CURATED_FEUD_GAMES['anime-all-stars'],
         roundIdx: 0,
@@ -397,8 +412,9 @@ app.post('/api/sync/state', (req, res) => {
 
 app.get('/api/sync/events', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.flushHeaders();
 
@@ -413,14 +429,20 @@ app.get('/api/sync/events', (req, res) => {
       _timestamp: Date.now()
     };
     res.write(`data: ${JSON.stringify(initialAction)}\n\n`);
+    if (typeof (res as any).flush === 'function') {
+      (res as any).flush();
+    }
   } catch {}
 
-  // Keep alive ping every 25 seconds
+  // Keep alive ping every 15 seconds
   const pingInterval = setInterval(() => {
     try {
       res.write(': ping\n\n');
+      if (typeof (res as any).flush === 'function') {
+        (res as any).flush();
+      }
     } catch {}
-  }, 25000);
+  }, 15000);
 
   req.on('close', () => {
     clearInterval(pingInterval);
@@ -442,6 +464,9 @@ app.post('/api/sync/action', (req, res) => {
   sseClients.forEach((client) => {
     try {
       client.write(payload);
+      if (typeof (client as any).flush === 'function') {
+        (client as any).flush();
+      }
     } catch {}
   });
 

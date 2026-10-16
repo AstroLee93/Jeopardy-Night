@@ -6,13 +6,15 @@ interface TvLobbyWaitingScreenProps {
   gameSubtitle: string;
   onSwitchToHost: () => void;
   onCheckSync: () => void;
+  onEnterBoard?: () => void;
 }
 
 export const TvLobbyWaitingScreen: React.FC<TvLobbyWaitingScreenProps> = ({
   gameTitle,
   gameSubtitle,
   onSwitchToHost,
-  onCheckSync
+  onCheckSync,
+  onEnterBoard
 }) => {
   const [copied, setCopied] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
@@ -98,8 +100,19 @@ export const TvLobbyWaitingScreen: React.FC<TvLobbyWaitingScreenProps> = ({
           </div>
         </div>
 
-        {/* Action bar: Switch to Host & Manual Re-sync check */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-xl mx-auto">
+        {/* Action bar: Switch to Host, Enter Board, & Manual Re-sync check */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-2xl mx-auto flex-wrap">
+          {onEnterBoard && (
+            <button
+              type="button"
+              onClick={onEnterBoard}
+              className="w-full sm:w-auto px-5 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-lg transition-transform hover:scale-105"
+            >
+              <Tv className="w-4 h-4" />
+              <span>Enter Live Game Board</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onSwitchToHost}

@@ -180,7 +180,7 @@ export const HostSheetModal: React.FC<HostSheetModalProps> = ({
 
         {/* Footer */}
         <div className="border-t border-slate-800 pt-3 mt-3 flex items-center justify-between text-xs text-slate-400">
-          <span>Tip: Access this admin sheet from any device on your Wi-Fi at <code className="text-amber-300 font-mono">http://&lt;ip&gt;:8080</code></span>
+          <span>Tip: Access this admin sheet from any device on your Wi-Fi at <code className="text-amber-300 font-mono">http://&lt;ip&gt;:3000?role=host</code></span>
           <button
             onClick={onClose}
             className="px-5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-lg transition-colors cursor-pointer"
