@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { ClueItem } from '../data/animeJeopardyData';
 import { Team } from './ScoreBoard';
 import { soundFx } from '../utils/audioSynth';
@@ -61,6 +62,13 @@ export const ClueModal: React.FC<ClueModalProps> = ({
 
   // Ref to track last tick sound played to avoid duplicate audio ticks
   const lastTickSoundSec = useRef<number | null>(null);
+
+  // Ensure viewport is scrolled to top on TV or mobile so modal is perfectly centered
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+    }
+  }, []);
 
   // Multi-Screen Synchronization Listener
   useEffect(() => {
@@ -444,12 +452,31 @@ export const ClueModal: React.FC<ClueModalProps> = ({
   const buzzedTeam = teams.find((t) => t.id === buzzedTeamId);
   const progressPercent = Math.min(100, Math.max(0, (timeLeft / (initialDuration || 15)) * 100));
 
-  return (
-    <div className="fixed inset-0 z-50 bg-[#010314]/94 backdrop-blur-md flex items-center justify-center p-2 sm:p-5 overflow-y-auto">
+  const modalContent = (
+    <div
+      data-modal-overlay="true"
+      className="fixed inset-0 z-50 bg-[#010314]/95 backdrop-blur-md flex items-center justify-center p-2 sm:p-5 overflow-y-auto"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 99999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        margin: 0,
+      }}
+    >
       <div
-        className={`w-full max-w-4xl bg-gradient-to-b from-[#0b15c9] via-[#04097a] to-[#020536] border-2 sm:border-4 rounded-2xl p-4 sm:p-7 shadow-2xl flex flex-col justify-between max-h-[96vh] overflow-y-auto ${
-          role === 'tv' ? 'border-cyan-400' : 'border-[#ffcc00]'
-        }`}
+        className={`w-full ${
+          role === 'tv'
+            ? 'max-w-5xl bg-gradient-to-b from-[#0a14bd] via-[#040875] to-[#01042b] border-4 border-cyan-400 p-5 sm:p-8 shadow-[0_0_60px_rgba(34,211,238,0.5)]'
+            : 'max-w-4xl bg-gradient-to-b from-[#0b15c9] via-[#04097a] to-[#020536] border-2 sm:border-4 border-[#ffcc00] p-4 sm:p-7 shadow-2xl'
+        } rounded-2xl flex flex-col justify-between max-h-[94vh] overflow-y-auto`}
       >
         {/* ===================================================================
             TOP BAR: Role Indicator, Category, Authoritative Countdown Timer
@@ -670,18 +697,24 @@ export const ClueModal: React.FC<ClueModalProps> = ({
             </div>
           )}
 
-          {/* Clue Prompt Text */}
-          <div className="font-jeopardy-serif text-white text-xl sm:text-2xl md:text-3xl lg:text-4xl leading-relaxed sm:leading-relaxed max-w-3xl drop-shadow-lg px-2">
+          {/* Clue Prompt Text - Extra bold and scaled up for Living Room TV viewing */}
+          <div
+            className={`font-jeopardy-serif text-white ${
+              role === 'tv'
+                ? 'text-2xl sm:text-4xl md:text-5xl lg:text-5xl font-bold leading-relaxed sm:leading-snug py-2'
+                : 'text-xl sm:text-2xl md:text-3xl lg:text-4xl leading-relaxed sm:leading-relaxed'
+            } max-w-4xl drop-shadow-xl px-2 text-center`}
+          >
             {clue.clue || (clue as any).question || (clue as any).prompt || 'Question Prompt'}
           </div>
 
           {/* Public Answer Reveal Box (Visible on both TV and Host when revealed) */}
           {isAnswerRevealed && (
-            <div className="w-full max-w-2xl bg-black/85 border-2 border-emerald-400 rounded-xl p-3 sm:p-4 mt-1 animate-in fade-in zoom-in-95 duration-150">
-              <span className="text-xs font-bold tracking-widest text-emerald-400 uppercase block mb-0.5">
+            <div className={`w-full ${role === 'tv' ? 'max-w-3xl p-4 sm:p-6' : 'max-w-2xl p-3 sm:p-4'} bg-black/85 border-2 sm:border-4 border-emerald-400 rounded-xl mt-1 animate-in fade-in zoom-in-95 duration-150`}>
+              <span className="text-xs sm:text-sm font-bold tracking-widest text-emerald-400 uppercase block mb-1">
                 📢 Revealed to All Players
               </span>
-              <div className="font-jeopardy-serif text-white text-xl sm:text-2xl md:text-3xl font-bold">
+              <div className={`font-jeopardy-serif text-white ${role === 'tv' ? 'text-2xl sm:text-3xl md:text-4xl' : 'text-xl sm:text-2xl md:text-3xl'} font-bold`}>
                 {clue.answer || (clue as any).solution || (clue as any).correct_answer || ''}
               </div>
             </div>
@@ -803,4 +836,6 @@ export const ClueModal: React.FC<ClueModalProps> = ({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 };

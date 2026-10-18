@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { JeopardyGameData } from '../data/animeJeopardyData';
 import { ShieldCheck, X, Search, Printer, Trophy, Play } from 'lucide-react';
 
@@ -18,6 +19,12 @@ export const HostSheetModal: React.FC<HostSheetModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+    }
+  }, []);
+
   const filteredCategories = gameData.categories.filter((cat) => {
     if (selectedCategory !== 'all' && cat.id !== selectedCategory) return false;
     if (!searchTerm) return true;
@@ -31,8 +38,25 @@ export const HostSheetModal: React.FC<HostSheetModalProps> = ({
     return matchesCat || matchesClues;
   });
 
-  return (
-    <div className="fixed inset-0 z-50 bg-[#010314]/94 backdrop-blur-md flex items-center justify-center p-2 sm:p-5 overflow-y-auto">
+  const modalContent = (
+    <div
+      data-modal-overlay="true"
+      className="fixed inset-0 z-50 bg-[#010314]/94 backdrop-blur-md flex items-center justify-center p-2 sm:p-5 overflow-y-auto"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 99999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        margin: 0,
+      }}
+    >
       <div className="w-full max-w-6xl bg-gradient-to-b from-[#07116b] to-[#02052c] border-2 sm:border-4 border-[#ffcc00] rounded-2xl p-4 sm:p-7 shadow-2xl flex flex-col max-h-[94vh]">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-700/80 pb-3 mb-4">
@@ -211,4 +235,6 @@ export const HostSheetModal: React.FC<HostSheetModalProps> = ({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 };

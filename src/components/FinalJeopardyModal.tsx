@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { FinalJeopardyItem } from '../data/animeJeopardyData';
 import { Team } from './ScoreBoard';
 import { soundFx } from '../utils/audioSynth';
@@ -158,8 +159,32 @@ export const FinalJeopardyModal: React.FC<FinalJeopardyModalProps> = ({
     onFinishGame(updated);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-[#010314]/95 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+  // Ensure viewport is scrolled to top so modal is perfectly centered
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+    }
+  }, []);
+
+  const modalContent = (
+    <div
+      data-modal-overlay="true"
+      className="fixed inset-0 z-50 bg-[#010314]/95 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 99999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        margin: 0,
+      }}
+    >
       <div className={`w-full max-w-4xl bg-gradient-to-b from-[#0b15c9] via-[#04097a] to-[#020536] border-4 rounded-2xl p-5 sm:p-8 shadow-2xl text-center ${
         role === 'tv' ? 'border-cyan-400' : 'border-[#ffcc00]'
       }`}>
@@ -387,4 +412,6 @@ export const FinalJeopardyModal: React.FC<FinalJeopardyModalProps> = ({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 };

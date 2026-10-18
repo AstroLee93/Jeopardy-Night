@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ClueItem } from '../data/animeJeopardyData';
 import { Team } from './ScoreBoard';
 import { soundFx } from '../utils/audioSynth';
@@ -26,8 +27,11 @@ export const DailyDoubleModal: React.FC<DailyDoubleModalProps> = ({
   const maxWager = Math.max(1000, currentTeam?.score || 0);
   const [wager, setWager] = useState<number>(Math.min(1000, maxWager));
 
-  // Trigger distinctive Daily Double sound effect on mount
+  // Trigger distinctive Daily Double sound effect on mount and pin viewport to top
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+    }
     soundFx.initCtx();
     // Play with full TV fanfare profile (sub-bass punch + dual-layer synth + shimmering chime)
     soundFx.playDailyDouble(role === 'tv');
@@ -37,8 +41,25 @@ export const DailyDoubleModal: React.FC<DailyDoubleModalProps> = ({
     setWager(Math.max(5, Math.min(val, maxWager)));
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-[#010314]/95 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+  const modalContent = (
+    <div
+      data-modal-overlay="true"
+      className="fixed inset-0 z-50 bg-[#010314]/95 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 99999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        margin: 0,
+      }}
+    >
       <div
         className={`w-full max-w-2xl bg-gradient-to-b from-[#0b15c9] via-[#04097a] to-[#020536] border-4 rounded-3xl p-6 sm:p-10 shadow-[0_0_50px_rgba(255,204,0,0.5)] text-center relative overflow-hidden ${
           role === 'tv' ? 'border-[#ffcc00] animate-pulse' : 'border-[#ffcc00]'
@@ -202,4 +223,6 @@ export const DailyDoubleModal: React.FC<DailyDoubleModalProps> = ({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 };

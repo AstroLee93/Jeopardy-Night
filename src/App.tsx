@@ -1385,7 +1385,24 @@ export default function App() {
 
       {/* 10. Rules & Game Night Guide Modal */}
       {showRulesModal && (
-        <div className="fixed inset-0 z-50 bg-[#010314]/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div
+          data-modal-overlay="true"
+          className="fixed inset-0 z-50 bg-[#010314]/90 backdrop-blur-md flex items-center justify-center p-4"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: 0,
+          }}
+        >
           <div className="w-full max-w-2xl bg-gradient-to-b from-[#07116b] to-[#02052c] border-2 sm:border-4 border-[#ffcc00] rounded-2xl p-6 shadow-2xl text-left">
             <h2 className="font-jeopardy-display text-2xl text-[#ffcc00] uppercase mb-3">
               How Multi-Screen Family Jeopardy Works

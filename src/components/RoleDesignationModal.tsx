@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ScreenRole } from '../utils/gameSync';
 import { Tv, Crown, ExternalLink, Copy, Check, X, Smartphone, Monitor } from 'lucide-react';
 
@@ -14,6 +15,12 @@ export const RoleDesignationModal: React.FC<RoleDesignationModalProps> = ({
   onClose
 }) => {
   const [copiedRole, setCopiedRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+    }
+  }, []);
 
   const getUrlForRole = (role: ScreenRole) => {
     if (typeof window === 'undefined') return '';
@@ -34,8 +41,25 @@ export const RoleDesignationModal: React.FC<RoleDesignationModalProps> = ({
     window.open(url, `_blank_${role}`, 'noopener,noreferrer');
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-[#010314]/94 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+  const modalContent = (
+    <div
+      data-modal-overlay="true"
+      className="fixed inset-0 z-50 bg-[#010314]/94 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 99999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        margin: 0,
+      }}
+    >
       <div className="w-full max-w-3xl bg-gradient-to-b from-[#07116b] to-[#02052c] border-2 sm:border-4 border-[#ffcc00] rounded-2xl p-5 sm:p-8 shadow-2xl flex flex-col text-left">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-700/80 pb-4 mb-5">
@@ -252,4 +276,6 @@ export const RoleDesignationModal: React.FC<RoleDesignationModalProps> = ({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 };

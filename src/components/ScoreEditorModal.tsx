@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Team } from './ScoreBoard';
 import { X, Check, Plus, Minus, RotateCcw } from 'lucide-react';
 
@@ -43,13 +44,36 @@ export const ScoreEditorModal: React.FC<ScoreEditorModalProps> = ({
     );
   };
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+    }
+  }, []);
+
   const handleSave = () => {
     onSaveTeams(editedTeams);
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-[#010314]/92 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+  const modalContent = (
+    <div
+      data-modal-overlay="true"
+      className="fixed inset-0 z-50 bg-[#010314]/92 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 99999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        margin: 0,
+      }}
+    >
       <div className="w-full max-w-2xl bg-gradient-to-b from-[#07116b] to-[#02052c] border-2 sm:border-4 border-[#ffcc00] rounded-2xl p-5 sm:p-7 shadow-2xl flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-700/80 pb-3 mb-4">
@@ -185,4 +209,6 @@ export const ScoreEditorModal: React.FC<ScoreEditorModalProps> = ({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 };
