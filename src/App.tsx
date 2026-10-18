@@ -513,10 +513,12 @@ export default function App() {
     };
 
     setActiveClueData(data);
+    stateRef.current.activeClueData = data;
 
     if (clue.isDailyDouble) {
       soundFx.playDailyDouble(role === 'tv');
       setIsDailyDoubleActive(true);
+      stateRef.current.isDailyDoubleActive = true;
       // Broadcast distinctive DAILY_DOUBLE_REVEAL to trigger sound & visual surprise on the TV display!
       gameSync.broadcast({
         type: 'DAILY_DOUBLE_REVEAL',
@@ -528,6 +530,7 @@ export default function App() {
     } else {
       soundFx.playCluePing();
       setIsDailyDoubleActive(false);
+      stateRef.current.isDailyDoubleActive = false;
       gameSync.broadcast({
         type: 'OPEN_CLUE',
         catIndex,
@@ -536,6 +539,20 @@ export default function App() {
         categoryTitle: category.title
       });
     }
+
+    // Also broadcast authoritative SYNC_FULL_STATE so TV screens and polling get active clue instantly
+    gameSync.broadcast({
+      type: 'SYNC_FULL_STATE',
+      state: {
+        gameMode: 'JEOPARDY',
+        phase: 'BOARD',
+        teams,
+        gameData,
+        usedClues: Array.from(usedClues),
+        activeClueData: data,
+        isDailyDoubleActive: !!clue.isDailyDouble
+      }
+    });
   };
 
   // Confirm Daily Double wager
@@ -550,6 +567,8 @@ export default function App() {
     };
     setActiveClueData(updated);
     setIsDailyDoubleActive(false);
+    stateRef.current.activeClueData = updated;
+    stateRef.current.isDailyDoubleActive = false;
     soundFx.playCluePing();
 
     gameSync.broadcast({
@@ -558,6 +577,19 @@ export default function App() {
       clueIndex: updated.clueIndex,
       clue: updated.clue,
       categoryTitle: updated.categoryTitle
+    });
+
+    gameSync.broadcast({
+      type: 'SYNC_FULL_STATE',
+      state: {
+        gameMode: 'JEOPARDY',
+        phase: 'BOARD',
+        teams,
+        gameData,
+        usedClues: Array.from(usedClues),
+        activeClueData: updated,
+        isDailyDoubleActive: false
+      }
     });
   };
 
@@ -573,12 +605,27 @@ export default function App() {
   const handleCloseClue = () => {
     soundFx.stopThinkMusic();
     soundFx.stopSpeaking();
+    let updatedUsedClues = usedClues;
     if (activeClueData) {
       const key = `${gameData.categories[activeClueData.catIndex].id}-${activeClueData.clueIndex}`;
-      setUsedClues(prev => new Set(prev).add(key));
+      updatedUsedClues = new Set(usedClues).add(key);
+      setUsedClues(updatedUsedClues);
       setActiveClueData(null);
+      stateRef.current.activeClueData = null;
     }
     gameSync.broadcast({ type: 'CLOSE_CLUE' });
+    gameSync.broadcast({
+      type: 'SYNC_FULL_STATE',
+      state: {
+        gameMode: 'JEOPARDY',
+        phase: 'BOARD',
+        teams,
+        gameData,
+        usedClues: Array.from(updatedUsedClues),
+        activeClueData: null,
+        isDailyDoubleActive: false
+      }
+    });
   };
 
   // Apply fresh board from AI Question Generator
@@ -1134,7 +1181,7 @@ export default function App() {
                 onOpenScoreEditor={() => setShowScoreEditorModal(true)}
               />
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-center">
                 {role === 'host' && (
                   <button
                     type="button"
@@ -1142,6 +1189,21 @@ export default function App() {
                     className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 font-semibold text-xs rounded-lg shadow flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <Edit2 className="w-3.5 h-3.5" /> Edit Scores & Badges
+                  </button>
+                )}
+
+                {role === 'host' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('Reset all team scores to $0 across all screens?')) {
+                        handleResetScores();
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-red-950/80 hover:bg-red-900 text-red-200 border border-red-700 font-semibold text-xs rounded-lg shadow flex items-center gap-1.5 transition-colors cursor-pointer"
+                    title="Clear all scores to $0"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" /> Clear Scores ($0)
                   </button>
                 )}
 
@@ -1235,6 +1297,10 @@ export default function App() {
         <HostSheetModal
           gameData={gameData}
           usedClues={usedClues}
+          onSelectClue={(catIdx, clueIdx) => {
+            setShowHostSheetModal(false);
+            handleSelectClue(catIdx, clueIdx);
+          }}
           onClose={() => setShowHostSheetModal(false)}
         />
       )}

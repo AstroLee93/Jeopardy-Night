@@ -105,7 +105,7 @@ export const RoleDesignationModal: React.FC<RoleDesignationModalProps> = ({
               </ul>
             </div>
 
-            <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2 mt-2">
+            <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2 mt-2 flex-wrap">
               <button
                 type="button"
                 onClick={(e) => {
@@ -116,6 +116,18 @@ export const RoleDesignationModal: React.FC<RoleDesignationModalProps> = ({
                 className="flex-1 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs rounded-xl shadow transition-colors cursor-pointer"
               >
                 Set This Screen as TV
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenNewWindow('tv');
+                }}
+                title="Open TV screen in a new tab/window"
+                className="py-2 px-3 bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/60 text-cyan-200 text-xs font-bold rounded-xl flex items-center gap-1 cursor-pointer transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Open New Tab</span>
               </button>
               <button
                 type="button"

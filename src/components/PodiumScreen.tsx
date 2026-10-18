@@ -118,38 +118,44 @@ export const PodiumScreen: React.FC<PodiumScreenProps> = ({
         </div>
 
         {/* Clear Scores & Restart Action Buttons */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-          {onPlayAgainSameTeams && (
+        <div className="bg-black/50 border border-slate-700/80 rounded-2xl p-4 sm:p-5 mt-2">
+          <div className="text-xs font-bold uppercase tracking-wider text-amber-300 mb-3 flex items-center justify-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5" /> Post-Game Options & Score Controls
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 flex-wrap">
+            {onResetScores && (
+              <button
+                type="button"
+                onClick={handleManualResetScores}
+                title="Clears all scores back to $0 immediately across all screens without leaving this screen"
+                className="w-full sm:w-auto py-3 px-6 bg-red-700 hover:bg-red-600 text-white font-bold text-sm sm:text-base rounded-xl border-2 border-red-400 shadow-lg transition-transform hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Reset All Scores to $0</span>
+              </button>
+            )}
+
+            {onPlayAgainSameTeams && (
+              <button
+                type="button"
+                onClick={onPlayAgainSameTeams}
+                title="Keeps the current team names, clears scores to $0, and reloads fresh board"
+                className="w-full sm:w-auto py-3 px-6 bg-[#ffcc00] hover:bg-[#ffe066] text-[#030852] font-jeopardy-display text-base sm:text-lg uppercase tracking-wider rounded-xl shadow-xl transition-transform hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Play className="w-5 h-5 fill-current" /> Play Again (Fresh Board, $0)
+              </button>
+            )}
+
             <button
               type="button"
-              onClick={onPlayAgainSameTeams}
-              title="Keeps the current team names, clears scores to $0, and reloads fresh board"
-              className="w-full sm:w-auto py-3 px-6 bg-[#ffcc00] hover:bg-[#ffe066] text-[#030852] font-jeopardy-display text-lg uppercase tracking-wider rounded-xl shadow-xl transition-transform hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer"
+              onClick={onRestart}
+              title="Clears all scores to $0 and returns to the game setup screen"
+              className="w-full sm:w-auto py-3 px-5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs sm:text-sm rounded-xl border border-slate-600 transition-colors flex items-center justify-center gap-2 cursor-pointer"
             >
-              <Play className="w-5 h-5 fill-current" /> Keep Teams & Play Again ($0)
+              <RotateCcw className="w-4 h-4 text-amber-300" /> Start New Game (Setup)
             </button>
-          )}
-
-          <button
-            type="button"
-            onClick={onRestart}
-            title="Clears all scores to $0 and returns to the game setup screen"
-            className="w-full sm:w-auto py-3 px-6 bg-slate-800 hover:bg-slate-700 text-white font-semibold text-sm rounded-xl border border-slate-600 transition-colors flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <RotateCcw className="w-4 h-4 text-amber-300" /> Start New Game (Reset Setup)
-          </button>
-
-          {onResetScores && (
-            <button
-              type="button"
-              onClick={handleManualResetScores}
-              title="Clears all scores back to $0 without leaving this screen"
-              className="w-full sm:w-auto py-3 px-4 bg-red-950/70 hover:bg-red-900 text-red-200 font-semibold text-xs rounded-xl border border-red-800 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <span>🧹</span>
-              <span>Reset Scores to $0</span>
-            </button>
-          )}
+          </div>
         </div>
       </div>
     </div>

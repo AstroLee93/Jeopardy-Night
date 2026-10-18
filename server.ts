@@ -418,6 +418,12 @@ app.get('/api/sync/events', (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.flushHeaders();
 
+  // Send 2KB initial comment padding to immediately defeat any reverse proxy / Nginx buffer delays
+  res.write(': ' + ' '.repeat(2048) + '\n\n');
+  if (typeof (res as any).flush === 'function') {
+    (res as any).flush();
+  }
+
   sseClients.push(res);
 
   // Immediately send initial snapshot of game state so late-joining screens/TVs sync instantly!
@@ -434,7 +440,7 @@ app.get('/api/sync/events', (req, res) => {
     }
   } catch {}
 
-  // Keep alive ping every 15 seconds
+  // Keep alive ping every 10 seconds
   const pingInterval = setInterval(() => {
     try {
       res.write(': ping\n\n');
@@ -442,7 +448,7 @@ app.get('/api/sync/events', (req, res) => {
         (res as any).flush();
       }
     } catch {}
-  }, 15000);
+  }, 10000);
 
   req.on('close', () => {
     clearInterval(pingInterval);
@@ -470,7 +476,7 @@ app.post('/api/sync/action', (req, res) => {
     } catch {}
   });
 
-  return res.json({ ok: true, recipientCount: sseClients.length });
+  return res.json({ ok: true, recipientCount: sseClients.length, state: currentGameState });
 });
 
 // Helper to get GoogleGenAI client

@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { JeopardyGameData } from '../data/animeJeopardyData';
-import { ShieldCheck, X, Search, Printer, Trophy } from 'lucide-react';
+import { ShieldCheck, X, Search, Printer, Trophy, Play } from 'lucide-react';
 
 interface HostSheetModalProps {
   gameData: JeopardyGameData;
   usedClues: Set<string>;
+  onSelectClue?: (catIndex: number, clueIndex: number) => void;
   onClose: () => void;
 }
 
 export const HostSheetModal: React.FC<HostSheetModalProps> = ({
   gameData,
   usedClues,
+  onSelectClue,
   onClose
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -154,6 +156,24 @@ export const HostSheetModal: React.FC<HostSheetModalProps> = ({
                             <span>Ans:</span>
                             <span className="text-white font-medium">{clue.answer}</span>
                           </div>
+
+                          {onSelectClue && !isUsed && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const realCatIdx = gameData.categories.findIndex(c => c.id === category.id);
+                                if (realCatIdx !== -1) {
+                                  onSelectClue(realCatIdx, idx);
+                                  onClose();
+                                }
+                              }}
+                              className="mt-1.5 w-full py-1 bg-amber-500 hover:bg-amber-400 text-[#02052c] font-bold text-xs rounded shadow flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                              title="Pushes this question to the TV screen and opens it"
+                            >
+                              <Play className="w-3 h-3 fill-current" />
+                              <span>▶ Show Clue on TV</span>
+                            </button>
+                          )}
                         </div>
                       );
                     })}

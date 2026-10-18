@@ -126,6 +126,8 @@ class GameSyncManager {
   private isDispatching: boolean = false;
   private pendingActions: SyncAction[] = [];
   private seenActionIds: Set<string> = new Set();
+  private lastKnownServerUpdated: number = 0;
+  private sseReconnectTimeout: any = null;
   public connectionStatus: SyncConnectionStatus = 'disconnected';
   private pollInterval: any = null;
 
@@ -137,18 +139,18 @@ class GameSyncManager {
       if (urlRole === 'tv' || urlRole === 'host') {
         this.currentRole = urlRole;
       } else {
-        // Tab-isolated sessionStorage ensures TV tab and Host tab on same browser never overwrite each other!
+        // Tab-isolated sessionStorage ensures TV tab and Host tab never overwrite each other
         try {
           const sessionRole = sessionStorage.getItem('anime_jeopardy_screen_role') as ScreenRole;
           if (sessionRole === 'tv' || sessionRole === 'host') {
             this.currentRole = sessionRole;
           } else {
-            const saved = localStorage.getItem('anime_jeopardy_screen_role') as ScreenRole;
-            if (saved === 'tv' || saved === 'host') {
-              this.currentRole = saved;
-            }
+            // Default to 'host' for primary screen
+            this.currentRole = 'host';
           }
-        } catch {}
+        } catch {
+          this.currentRole = 'host';
+        }
       }
 
       // Initialize BroadcastChannel for 0ms same-machine sync
@@ -174,34 +176,45 @@ class GameSyncManager {
       // Immediately fetch authoritative server state on startup
       this.fetchServerState();
 
-      // Periodic auto-sync poll (every 3 seconds) ensures TV stays synchronized even if tab slept
+      // Fast auto-sync poll (every 800ms for TV) guarantees instant question/score updates even if SSE is buffered
       this.pollInterval = setInterval(() => {
         if (this.currentRole === 'tv') {
           this.fetchServerState();
         }
-      }, 3000);
+      }, 800);
+
+      // Re-fetch when tab becomes visible
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          this.fetchServerState();
+          if (this.connectionStatus !== 'connected') {
+            this.initServerEvents();
+          }
+        }
+      });
     }
   }
 
-  // Fetch state snapshot from the server (critical for TV or secondary screens joining late)
+  // Fetch state snapshot from the server (critical for TV or secondary screens joining late or recovering from sleeps)
   public async fetchServerState() {
     if (typeof window === 'undefined') return;
     try {
-      const res = await fetch('/api/sync/state');
+      const res = await fetch(`/api/sync/state?_t=${Date.now()}`);
       if (res.ok) {
         const data = await res.json();
-        // Accept authoritative state whenever provided (do not reject SETUP phase!)
         if (data && data.state) {
-          this.notifyListeners({
-            type: 'SYNC_FULL_STATE',
-            state: data.state
-          });
+          const serverUpdated = data.state.lastUpdated || 0;
+          // Apply state when updated or on first load
+          if (serverUpdated !== this.lastKnownServerUpdated || !this.lastKnownServerUpdated) {
+            this.lastKnownServerUpdated = serverUpdated;
+            this.notifyListeners({
+              type: 'SYNC_FULL_STATE',
+              state: data.state
+            });
+          }
         }
       }
     } catch {}
-
-    // Also ask any active Host tab to share its live state
-    this.broadcast({ type: 'REQUEST_STATE' });
   }
 
   public setRole(role: ScreenRole) {
@@ -316,6 +329,13 @@ class GameSyncManager {
   private initServerEvents() {
     if (typeof window === 'undefined') return;
 
+    if (this.sseSource) {
+      try {
+        this.sseSource.close();
+      } catch {}
+      this.sseSource = null;
+    }
+
     try {
       this.connectionStatus = 'connecting';
       this.notifyStatusListeners('connecting');
@@ -325,6 +345,10 @@ class GameSyncManager {
       this.sseSource.onopen = () => {
         this.connectionStatus = 'connected';
         this.notifyStatusListeners('connected');
+        if (this.sseReconnectTimeout) {
+          clearTimeout(this.sseReconnectTimeout);
+          this.sseReconnectTimeout = null;
+        }
         this.fetchServerState();
       };
 
@@ -343,10 +367,28 @@ class GameSyncManager {
       this.sseSource.onerror = () => {
         this.connectionStatus = 'disconnected';
         this.notifyStatusListeners('disconnected');
+        try {
+          if (this.sseSource) this.sseSource.close();
+        } catch {}
+        this.sseSource = null;
+
+        // Auto-reconnect after 2 seconds
+        if (!this.sseReconnectTimeout) {
+          this.sseReconnectTimeout = setTimeout(() => {
+            this.sseReconnectTimeout = null;
+            this.initServerEvents();
+          }, 2000);
+        }
       };
     } catch {
       this.connectionStatus = 'disconnected';
       this.notifyStatusListeners('disconnected');
+      if (!this.sseReconnectTimeout) {
+        this.sseReconnectTimeout = setTimeout(() => {
+          this.sseReconnectTimeout = null;
+          this.initServerEvents();
+        }, 2500);
+      }
     }
   }
 
