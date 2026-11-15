@@ -7,6 +7,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { INITIAL_ANIME_DATA, JeopardyGameData, ClueItem } from './data/animeJeopardyData';
 import { JeopardyBoard } from './components/JeopardyBoard';
 import { ScoreBoard, Team } from './components/ScoreBoard';
+import { Podium } from './components/Podium';
 import { ClueModal } from './components/ClueModal';
 import { DailyDoubleModal } from './components/DailyDoubleModal';
 import { FinalJeopardyModal } from './components/FinalJeopardyModal';
@@ -834,14 +835,14 @@ export default function App() {
 
   return (
     <div
-      className={`min-h-screen bg-[#02052c] text-white flex flex-col justify-between selection:bg-[#ffcc00] selection:text-[#030852] ${
+      className={`min-h-screen overflow-x-clip bg-[#02052c] text-white flex flex-col justify-between selection:bg-[#ffcc00] selection:text-[#030852] ${
         isTvSafeMode ? 'p-3 sm:p-6' : ''
       } ${isLargeTextMode ? 'text-lg' : ''}`}
     >
       {/* =====================================================================
           TOP NAVIGATION BAR (Strict 3-Zone Contract with Role Indicator)
           ===================================================================== */}
-      <header className="flex items-center justify-between px-3 sm:px-6 py-2.5 bg-[#030852]/90 border-b-2 border-[#ffcc00] shadow-xl z-20">
+      <header className="flex flex-wrap gap-y-2 items-center justify-between px-3 sm:px-6 py-2.5 bg-[#030852]/90 border-b-2 border-[#ffcc00] shadow-xl z-20">
         {/* Zone 1: Wordmark & Role Indicator Badge */}
         <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
           <div className="flex items-center gap-2">
@@ -996,7 +997,7 @@ export default function App() {
         </nav>
 
         {/* Zone 3: Actions */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           {/* Quick Score Editor Button */}
           {phase === 'BOARD' && role === 'host' && (
             <button
@@ -1137,136 +1138,94 @@ export default function App() {
                   }}
                 />
               ) : (
-                <div className="flex-1 flex items-center justify-center py-6">
-                  <div className="w-full max-w-3xl bg-gradient-to-b from-[#0b15c9]/30 via-[#04097a]/40 to-[#02052c] border-2 sm:border-4 border-[#ffcc00] rounded-2xl p-6 sm:p-10 shadow-2xl text-center backdrop-blur-md">
-                    <span className="text-4xl sm:text-5xl block mb-2">🏆</span>
-                    <h1 className="font-jeopardy-display text-3xl sm:text-5xl text-[#ffcc00] uppercase tracking-wider mb-2 drop-shadow-md">
-                      Family Jeopardy
-                    </h1>
-                    <p className="text-slate-300 text-sm sm:text-base mb-6">
-                      {gameData.title} · {gameData.subtitle}
-                    </p>
+                <section className="stage-setup">
+                  <p className="stage-kicker">{gameData.subtitle || gameData.title}</p>
+                  <h1 className="stage-headline">Who&rsquo;s playing tonight?</h1>
+                  <p className="stage-lede">Write each team&rsquo;s name on a podium. Two to six teams can play.</p>
 
-                    {/* TV SCREEN LINK CALLOUT FOR HOST */}
-                    <div className="mb-6 p-4 rounded-xl bg-cyan-950/40 border border-cyan-500/60 text-left flex items-center justify-between flex-wrap gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-cyan-300">
-                          <Tv className="w-5 h-5" />
+                  <div className="podium-row podium-row-setup">
+                    {Array.from({ length: teamCount }).map((_, idx) => {
+                      const color = DEFAULT_TEAMS_INFO[idx % DEFAULT_TEAMS_INFO.length];
+                      return (
+                        <div key={idx} className="podium-slot">
+                          <Podium
+                            size="lg"
+                            name={teamNames[idx] ?? ''}
+                            color={color.border}
+                            score={0}
+                            placeholder={`Team ${idx + 1}`}
+                            onNameChange={(v) => {
+                              const updated = [...teamNames];
+                              updated[idx] = v;
+                              setTeamNames(updated);
+                            }}
+                          />
+                          {teamCount > 2 && idx === teamCount - 1 && (
+                            <button
+                              type="button"
+                              className="podium-remove"
+                              onClick={() => setTeamCount(teamCount - 1)}
+                              aria-label="Remove this team"
+                              title="Remove this team"
+                            >
+                              &times;
+                            </button>
+                          )}
                         </div>
-                        <div>
-                          <strong className="text-white text-xs sm:text-sm block">Living Room TV Display Screen</strong>
-                          <span className="text-[11px] text-slate-300">Open on Smart TV, projector, or second tab so players can watch:</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const url = new URL(window.location.href);
-                            url.searchParams.set('role', 'tv');
-                            navigator.clipboard.writeText(url.toString());
-                          }}
-                          className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-lg cursor-pointer flex items-center gap-1 shadow"
-                        >
-                          <Copy className="w-3.5 h-3.5" />
-                          <span>Copy TV Link</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const url = new URL(window.location.href);
-                            url.searchParams.set('role', 'tv');
-                            window.open(url.toString(), '_blank_tv', 'noopener,noreferrer');
-                          }}
-                          className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/50 text-xs font-semibold rounded-lg cursor-pointer flex items-center gap-1"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                          <span>Open TV Window</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Number of Teams Selector */}
-                    <div className="mb-6">
-                      <span className="text-xs font-bold uppercase tracking-widest text-[#ffcc00] block mb-3">
-                        Select Number of Teams (2 to 6)
-                      </span>
-                      <div className="flex items-center justify-center gap-2">
-                        {[2, 3, 4, 5, 6].map((count) => (
-                          <button
-                            key={count}
-                            type="button"
-                            onClick={() => setTeamCount(count)}
-                            className={`w-12 h-12 rounded-xl font-jeopardy-display text-xl transition-all cursor-pointer ${
-                              teamCount === count
-                                ? 'bg-[#ffcc00] text-[#030852] font-bold shadow-lg scale-105 border-2 border-white'
-                                : 'bg-slate-800 text-slate-300 border border-slate-700 hover:border-slate-500'
-                            }`}
-                          >
-                            {count}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Team Name Inputs & Avatar Badges */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8 text-left">
-                      {Array.from({ length: teamCount }).map((_, idx) => {
-                        const color = DEFAULT_TEAMS_INFO[idx % DEFAULT_TEAMS_INFO.length];
-                        return (
-                          <div key={idx} className="bg-[#02052c] border border-slate-700 rounded-xl p-3">
-                            <div className="flex items-center justify-between mb-1">
-                              <label
-                                style={{ color: color.border }}
-                                className="text-xs font-bold uppercase tracking-wider block"
-                              >
-                                Team {idx + 1}
-                              </label>
-                              <span className="text-base select-none">{color.avatar}</span>
-                            </div>
-                            <input
-                              type="text"
-                              value={teamNames[idx]}
-                              onChange={(e) => {
-                                const updated = [...teamNames];
-                                updated[idx] = e.target.value;
-                                setTeamNames(updated);
-                              }}
-                              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white font-semibold outline-none focus:border-[#ffcc00]"
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                      );
+                    })}
+                    {teamCount < 6 && (
                       <button
                         type="button"
-                        onClick={handleStartGame}
-                        className="w-full sm:w-auto py-3.5 px-8 bg-[#ffcc00] hover:bg-[#ffe066] text-[#030852] font-jeopardy-display text-xl uppercase tracking-wider rounded-xl shadow-xl transition-transform hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer"
+                        className="podium-add"
+                        onClick={() => {
+                          if (!teamNames[teamCount]) {
+                            const updated = [...teamNames];
+                            updated[teamCount] = DEFAULT_TEAMS_INFO[teamCount % DEFAULT_TEAMS_INFO.length].name;
+                            setTeamNames(updated);
+                          }
+                          setTeamCount(teamCount + 1);
+                        }}
                       >
-                        <Play className="w-5 h-5 fill-current" /> Start Game Night
+                        <span className="podium-add-plus" aria-hidden="true">+</span>
+                        Add a team
                       </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setShowHostSheetModal(true)}
-                        className="w-full sm:w-auto py-3.5 px-6 bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 font-semibold text-sm rounded-xl border border-emerald-700 flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                      >
-                        <ShieldCheck className="w-4 h-4 text-emerald-400" /> Host Answer Sheet
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setShowAiQuestionModal(true)}
-                        className="w-full sm:w-auto py-3.5 px-6 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white font-semibold text-sm rounded-xl shadow-lg border border-purple-400/40 flex items-center justify-center gap-2 transition-transform hover:-translate-y-0.5 cursor-pointer"
-                      >
-                        <Sparkles className="w-4 h-4 text-amber-300" /> AI Trivia Generator
-                      </button>
-                    </div>
+                    )}
                   </div>
-                </div>
+
+                  <button type="button" onClick={handleStartGame} className="marquee-button">
+                    Start the show
+                  </button>
+
+                  <div className="stage-secondary">
+                    <button type="button" onClick={() => setShowHostSheetModal(true)}>
+                      <ShieldCheck className="w-4 h-4" /> Preview answers
+                    </button>
+                    <button type="button" onClick={() => setShowAiQuestionModal(true)}>
+                      <Sparkles className="w-4 h-4" /> Make a new board
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('role', 'tv');
+                        window.open(url.toString(), '_blank_tv', 'noopener,noreferrer');
+                      }}
+                    >
+                      <Tv className="w-4 h-4" /> Open the TV screen
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('role', 'tv');
+                        navigator.clipboard?.writeText(url.toString()).catch(() => {});
+                      }}
+                    >
+                      <Copy className="w-4 h-4" /> Copy TV link
+                    </button>
+                  </div>
+                </section>
               )
             )}
 
@@ -1570,7 +1529,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="text-center py-2 text-xs text-slate-500 border-t border-slate-900 bg-[#01031b]">
-        Family Jeopardy · Multi-Screen TV Display & Host Controller · Raspberry Pi & Docker Offline Ready
+        Family Jeopardy runs on your home network. Open it on the TV, then run the game from your phone or laptop.
       </footer>
       {splash && (
         <RoundSplash key={splash.key} title={splash.title} subtitle={splash.subtitle} onDone={() => setSplash(null)} />
