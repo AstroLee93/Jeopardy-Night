@@ -6,7 +6,8 @@ A full-featured, family-friendly Jeopardy web game with interactive host control
 
 ## 🌟 Key Features
 
-- **Classic Jeopardy Board**: 6 customizable categories, 5 clue tiers ($200–$1,000), Daily Double wagers, and a Final Jeopardy round.
+- **Full Three-Round Show**: Jeopardy! ($200–$1,000, 1 Daily Double) → Double Jeopardy! ($400–$2,000, 2 randomly hidden Daily Doubles, fresh categories) → Final Jeopardy!. Add your own second-round board via the optional `doubleJeopardy` field in game data, or one is drawn from the curated decks automatically.
+- **Broadcast-Style Presentation**: Round title cards on every screen, tiles that flip in randomly at the start of each round, categories revealed one by one, clues that zoom out of the tile that was picked, gold condensed dollar values, and uppercase serif clue text.
 - **Host Answer Sheet (Admin View)**: A dedicated host dashboard showing all clues, correct answers, and Daily Double locations in real-time, so the host always knows the answer without having to reveal it on the main board!
 - **AI Trivia Generator**: Built-in Gemini AI generator to create full custom Jeopardy boards on any anime theme (*Shonen Legends*, *Studio Ghibli*, *Modern Hits*, *Cyberpunk & Mecha*, *Isekai*, or custom topics).
 - **Audio Synthesizer**: 100% browser-synthesized Jeopardy Think Music, Daily Double fanfare, right/wrong chimes, and triple buzzers without external audio dependencies.

@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Libre+Baskerville:wght@400;700&display=swap");
 @import "tailwindcss";
 
 @layer base {
@@ -19,12 +20,17 @@
 }
 
 .font-jeopardy-display {
-  font-family: "Impact", "Trebuchet MS", "Arial Black", sans-serif;
+  font-family: "Bebas Neue", "Anton", "Impact", "Trebuchet MS", "Arial Black", sans-serif;
   letter-spacing: 0.05em;
 }
 
+.font-jeopardy-value {
+  font-family: "Anton", "Impact", "Arial Black", sans-serif;
+  letter-spacing: 0.02em;
+}
+
 .font-jeopardy-serif {
-  font-family: "Georgia", "Times New Roman", "Cambria", serif;
+  font-family: "Libre Baskerville", "Georgia", "Times New Roman", "Cambria", serif;
 }
 
 /* TV Board Cell glow & animations */
@@ -63,3 +69,147 @@
   box-sizing: border-box !important;
 }
 
+
+/* ===================== Show-accurate board ===================== */
+.jeopardy-board {
+  background: #000;
+  border: 3px solid #000;
+  box-shadow: 0 0 0 3px #1a1f6b, 0 20px 60px rgba(0, 0, 0, 0.7);
+}
+
+.category-cell,
+.clue-cell {
+  background: radial-gradient(ellipse at 50% 35%, #1b23ff 0%, #060ce9 45%, #0408a8 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), inset 0 -6px 14px rgba(0, 0, 0, 0.35);
+}
+
+.category-cell {
+  border-bottom: 4px solid #000;
+  opacity: 0;
+  animation: categoryReveal 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2) forwards;
+}
+.category-cell h3 {
+  text-shadow: 3px 3px 0 #000, 0 0 12px rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.04em;
+}
+
+.clue-cell {
+  opacity: 0;
+  transform: rotateX(90deg);
+  animation: tileFill 0.35s ease-out forwards;
+  transition: filter 0.12s, transform 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+.clue-cell:not(:disabled):hover {
+  filter: brightness(1.25);
+  box-shadow: inset 0 0 0 2px #ffcc00, 0 0 18px rgba(255, 204, 0, 0.45);
+}
+.clue-cell:not(:disabled):active {
+  transform: scale(0.96);
+}
+.clue-cell:focus-visible {
+  outline: 3px solid #ffcc00;
+  outline-offset: -3px;
+}
+.clue-cell-used {
+  background: #060ce9;
+  filter: brightness(0.55);
+}
+
+.dollar-value {
+  color: #d69f4c;
+  background: linear-gradient(180deg, #ffe08a 0%, #e8b04b 55%, #b07a26 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(3px 3px 0 #000);
+  line-height: 1;
+}
+.dollar-sign {
+  font-size: 0.72em;
+  vertical-align: 0.18em;
+  margin-right: 0.04em;
+}
+
+@keyframes tileFill {
+  0% { opacity: 0; transform: rotateX(90deg); filter: brightness(2.2); }
+  70% { opacity: 1; filter: brightness(1.4); }
+  100% { opacity: 1; transform: rotateX(0deg); filter: none; }
+}
+@keyframes categoryReveal {
+  0% { opacity: 0; transform: scale(1.35); filter: brightness(2); }
+  100% { opacity: 1; transform: scale(1); filter: none; }
+}
+
+/* Clue zooms out of the tile that was picked (origin set from App) */
+.clue-zoom-in {
+  transform-origin: var(--clue-origin-x, 50%) var(--clue-origin-y, 50%);
+  animation: clueZoom 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes clueZoom {
+  0% { transform: scale(0.08); opacity: 0.4; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.clue-text-show {
+  text-transform: uppercase;
+  text-shadow: 4px 4px 0 #000, 0 0 20px rgba(0, 0, 0, 0.6);
+  letter-spacing: 0.02em;
+}
+
+/* Round title card */
+.round-splash {
+  background: radial-gradient(ellipse at center, #1b23ff 0%, #060ce9 40%, #01033a 100%);
+  animation-name: splashLife;
+  animation-fill-mode: both;
+  animation-timing-function: ease;
+}
+.round-splash-rays {
+  position: absolute;
+  inset: -50%;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.07) 0deg 8deg, transparent 8deg 20deg);
+  animation: raysSpin 12s linear infinite;
+}
+.round-splash-title {
+  position: relative;
+  font-size: clamp(3rem, 13vw, 11rem);
+  line-height: 0.95;
+  color: #fff;
+  text-shadow: 6px 6px 0 #000, 0 0 40px rgba(255, 204, 0, 0.55);
+  animation: splashTitle 0.9s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.round-splash-sub {
+  position: relative;
+  margin-top: 1.25rem;
+  font-size: clamp(1rem, 2.6vw, 1.8rem);
+  color: #ffcc00;
+  text-shadow: 2px 2px 0 #000;
+  animation: splashSub 0.6s 0.5s ease-out both;
+}
+@keyframes splashLife {
+  0% { opacity: 0; }
+  8% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes splashTitle {
+  0% { transform: scale(0.2) rotate(-6deg); opacity: 0; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+@keyframes splashSub {
+  0% { transform: translateY(20px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes raysSpin {
+  to { transform: rotate(360deg); }
+}
+
+.round-complete-banner {
+  animation: categoryReveal 0.5s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clue-cell, .category-cell, .clue-zoom-in, .round-splash-title, .round-splash-sub, .round-splash-rays {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+  }
+}

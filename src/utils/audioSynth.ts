@@ -247,6 +247,32 @@ class SoundSynthesizer {
     }
   }
 
+  // Original round-intro sting: a rising brass-like swell with a sparkle hit.
+  public playRoundIntro(isDouble = false) {
+    if (!this.enabled || this.volume <= 0) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+    const base = isDouble ? 1.12246 : 1; // up a whole step for the second round
+    const chord = [261.63, 329.63, 392.0, 523.25];
+    chord.forEach((f, i) => {
+      setTimeout(() => {
+        this.playTone(f * base, 0.9 - i * 0.1, 'sawtooth', 0.12);
+        this.playTone(f * base * 2, 0.6, 'triangle', 0.14);
+      }, i * 110);
+    });
+    setTimeout(() => {
+      [1046.5, 1318.5, 1568].forEach((f, i) =>
+        setTimeout(() => this.playTone(f * base, 0.5, 'sine', 0.18), i * 45)
+      );
+    }, chord.length * 110 + 60);
+  }
+
+  // Soft tick used while the board tiles flip in at the start of a round
+  public playBoardFillTick() {
+    if (!this.enabled || this.volume <= 0) return;
+    this.playTone(1800 + Math.random() * 600, 0.025, 'sine', 0.08);
+  }
+
   // Victory / Final Podium Fanfare
   public playFanfare() {
     if (!this.enabled) return;

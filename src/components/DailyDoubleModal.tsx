@@ -12,20 +12,22 @@ interface DailyDoubleModalProps {
   teams: Team[];
   role?: ScreenRole;
   onConfirmWager: (wager: number) => void;
+  wagerFloor?: number;
 }
 
 export const DailyDoubleModal: React.FC<DailyDoubleModalProps> = ({
   categoryTitle,
   teams,
   role = 'host',
-  onConfirmWager
+  onConfirmWager,
+  wagerFloor = 1000
 }) => {
   const [selectedTeamId, setSelectedTeamId] = useState<number>(teams[0]?.id ?? 0);
   const currentTeam = teams.find((t) => t.id === selectedTeamId) || teams[0];
 
   // Maximum allowed wager: the maximum of $1,000 or the team's current score
-  const maxWager = Math.max(1000, currentTeam?.score || 0);
-  const [wager, setWager] = useState<number>(Math.min(1000, maxWager));
+  const maxWager = Math.max(wagerFloor, currentTeam?.score || 0);
+  const [wager, setWager] = useState<number>(Math.min(wagerFloor, maxWager));
 
   // Trigger distinctive Daily Double sound effect on mount and pin viewport to top
   useEffect(() => {
@@ -125,7 +127,7 @@ export const DailyDoubleModal: React.FC<DailyDoubleModalProps> = ({
             </div>
 
             <p className="text-xs text-slate-400 italic">
-              Maximum wager is the team's total score (or $1,000 if less than $1,000).
+              Maximum wager is the team's total score (or ${wagerFloor.toLocaleString()} if less than that).
             </p>
           </div>
         ) : (
@@ -145,8 +147,8 @@ export const DailyDoubleModal: React.FC<DailyDoubleModalProps> = ({
                     type="button"
                     onClick={() => {
                       setSelectedTeamId(team.id);
-                      const newMax = Math.max(1000, team.score);
-                      setWager(Math.min(1000, newMax));
+                      const newMax = Math.max(wagerFloor, team.score);
+                      setWager(Math.min(wagerFloor, newMax));
                     }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                       selectedTeamId === team.id

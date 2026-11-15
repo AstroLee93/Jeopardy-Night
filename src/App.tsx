@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { INITIAL_ANIME_DATA, JeopardyGameData, ClueItem } from './data/animeJeopardyData';
 import { JeopardyBoard } from './components/JeopardyBoard';
 import { ScoreBoard, Team } from './components/ScoreBoard';
@@ -22,6 +22,8 @@ import { FamilyFeudBoard } from './components/FamilyFeudBoard';
 import { TvLobbyWaitingScreen } from './components/TvLobbyWaitingScreen';
 import { soundFx } from './utils/audioSynth';
 import { gameSync, ScreenRole } from './utils/gameSync';
+import { RoundNumber, buildDoubleJeopardy, isBoardCleared, roundWagerFloor } from './utils/rounds';
+import { RoundSplash } from './components/RoundSplash';
 import { 
   Volume2, 
   VolumeX, 
@@ -82,6 +84,12 @@ export default function App() {
   } | null>(null);
 
   const [isDailyDoubleActive, setIsDailyDoubleActive] = useState<boolean>(false);
+  const [round, setRound] = useState<RoundNumber>(1);
+  const roundRef = useRef<RoundNumber>(1);
+  const [splash, setSplash] = useState<null | { title: string; subtitle?: string; key: number }>(null);
+  const activeCategories = round === 2 && gameData.doubleJeopardy?.length ? gameData.doubleJeopardy : gameData.categories;
+  const activeCategoriesRef = useRef(activeCategories);
+  activeCategoriesRef.current = activeCategories;
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [volume, setVolume] = useState<number>(0.8);
   const [audioTestedFeedback, setAudioTestedFeedback] = useState<boolean>(false);
@@ -124,6 +132,7 @@ export default function App() {
     gameSync.broadcast({
       type: 'SYNC_FULL_STATE',
       state: {
+        round: roundRef.current,
         gameMode: mode,
         phase,
         teams,
@@ -162,6 +171,39 @@ export default function App() {
     };
   });
 
+  // Point the clue zoom animation at the tile that was picked (works on host and TV)
+  useLayoutEffect(() => {
+    if (!activeClueData) return;
+    const el = document.querySelector(`[data-clue-cell="${activeClueData.catIndex}-${activeClueData.clueIndex}"]`);
+    const root = document.documentElement;
+    if (el) {
+      const r = el.getBoundingClientRect();
+      root.style.setProperty('--clue-origin-x', `${r.left + r.width / 2}px`);
+      root.style.setProperty('--clue-origin-y', `${r.top + r.height / 2}px`);
+    } else {
+      root.style.setProperty('--clue-origin-x', '50%');
+      root.style.setProperty('--clue-origin-y', '50%');
+    }
+  }, [activeClueData?.catIndex, activeClueData?.clueIndex, activeClueData]);
+
+  // Round-transition splash ("JEOPARDY!" / "DOUBLE JEOPARDY!") on every screen
+  const lastSplashRef = useRef<string>('');
+  useEffect(() => {
+    if (gameMode !== 'JEOPARDY') return;
+    let sig = '';
+    let title = '';
+    let subtitle: string | undefined;
+    if (phase === 'BOARD' && round === 1) { sig = 'r1'; title = 'JEOPARDY!'; subtitle = gameData.subtitle || gameData.title; }
+    else if (phase === 'BOARD' && round === 2) { sig = 'r2'; title = 'DOUBLE JEOPARDY!'; subtitle = 'Dollar values double. Two Daily Doubles are hiding.'; }
+    else if (phase === 'FINAL_JEOPARDY') { sig = 'fj'; title = 'FINAL JEOPARDY!'; subtitle = gameData.finalJeopardy?.category; }
+    else { lastSplashRef.current = ''; return; }
+    if (sig === lastSplashRef.current) return;
+    lastSplashRef.current = sig;
+    setSplash({ title, subtitle, key: Date.now() });
+    soundFx.playRoundIntro(round === 2 && sig === 'r2');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, round, gameMode]);
+
   // Subscribe to Multi-Screen Cross-Device Events once on mount (NEVER drop events during re-renders!)
   useEffect(() => {
     const unsubscribe = gameSync.subscribe((action) => {
@@ -174,6 +216,10 @@ export default function App() {
             }
             if (s.phase) {
               setPhase(s.phase);
+            }
+            if (s.round === 1 || s.round === 2) {
+              roundRef.current = s.round;
+              setRound(s.round);
             }
             if (s.teams && Array.isArray(s.teams) && s.teams.length > 0) {
               setTeams(s.teams);
@@ -203,6 +249,7 @@ export default function App() {
             gameSync.broadcast({
               type: 'SYNC_FULL_STATE',
               state: {
+                round: roundRef.current,
                 gameMode: cur.gameMode,
                 phase: cur.phase,
                 teams: cur.teams,
@@ -249,6 +296,8 @@ export default function App() {
           setUsedClues(new Set());
           setActiveClueData(null);
           setPhase('BOARD');
+          roundRef.current = 1;
+          setRound(1);
           soundFx.playCluePing();
           break;
 
@@ -295,7 +344,7 @@ export default function App() {
           {
             const active = stateRef.current.activeClueData;
             if (active) {
-              const cat = stateRef.current.gameData.categories[active.catIndex];
+              const cat = activeCategoriesRef.current[active.catIndex];
               if (cat) {
                 const key = `${cat.id}-${active.clueIndex}`;
                 setUsedClues((prev) => new Set(prev).add(key));
@@ -320,6 +369,8 @@ export default function App() {
           soundFx.stopThinkMusic();
           soundFx.stopSpeaking();
           setPhase('SETUP');
+          roundRef.current = 1;
+          setRound(1);
           setUsedClues(new Set());
           setActiveClueData(null);
           setIsDailyDoubleActive(false);
@@ -359,6 +410,7 @@ export default function App() {
           phase,
           teams,
           usedClues: Array.from(usedClues),
+          round,
           teamCount,
           teamNames,
           timestamp: Date.now()
@@ -367,7 +419,7 @@ export default function App() {
         setHasSavedSession(true);
       } catch {}
     }
-  }, [gameData, phase, teams, usedClues, teamCount, teamNames]);
+  }, [gameData, phase, teams, usedClues, round, teamCount, teamNames]);
 
   // Resume saved game
   const handleResumeGame = () => {
@@ -379,6 +431,10 @@ export default function App() {
       if (parsed.phase) setPhase(parsed.phase);
       if (parsed.teams) setTeams(parsed.teams);
       if (parsed.usedClues) setUsedClues(new Set(parsed.usedClues));
+      if (parsed.round === 1 || parsed.round === 2) {
+        roundRef.current = parsed.round;
+        setRound(parsed.round);
+      }
       if (parsed.teamCount) setTeamCount(parsed.teamCount);
       if (parsed.teamNames) setTeamNames(parsed.teamNames);
       setHasSavedSession(false);
@@ -475,6 +531,8 @@ export default function App() {
     setUsedClues(new Set());
     setActiveClueData(null);
     setPhase('BOARD');
+    roundRef.current = 1;
+    setRound(1);
     setHasSavedSession(false);
     soundFx.playCluePing();
 
@@ -487,6 +545,7 @@ export default function App() {
     gameSync.broadcast({
       type: 'SYNC_FULL_STATE',
       state: {
+        round: roundRef.current,
         gameMode: 'JEOPARDY',
         phase: 'BOARD',
         teams: initializedTeams,
@@ -501,7 +560,7 @@ export default function App() {
   // Clue Selection (and broadcast to TV display)
   const handleSelectClue = (catIndex: number, clueIndex: number) => {
     soundFx.initCtx();
-    const category = gameData.categories[catIndex];
+    const category = activeCategories[catIndex];
     const clue = category.clues[clueIndex];
     if (!clue) return;
 
@@ -544,6 +603,7 @@ export default function App() {
     gameSync.broadcast({
       type: 'SYNC_FULL_STATE',
       state: {
+        round: roundRef.current,
         gameMode: 'JEOPARDY',
         phase: 'BOARD',
         teams,
@@ -582,6 +642,7 @@ export default function App() {
     gameSync.broadcast({
       type: 'SYNC_FULL_STATE',
       state: {
+        round: roundRef.current,
         gameMode: 'JEOPARDY',
         phase: 'BOARD',
         teams,
@@ -607,7 +668,7 @@ export default function App() {
     soundFx.stopSpeaking();
     let updatedUsedClues = usedClues;
     if (activeClueData) {
-      const key = `${gameData.categories[activeClueData.catIndex].id}-${activeClueData.clueIndex}`;
+      const key = `${activeCategories[activeClueData.catIndex].id}-${activeClueData.clueIndex}`;
       updatedUsedClues = new Set(usedClues).add(key);
       setUsedClues(updatedUsedClues);
       setActiveClueData(null);
@@ -617,6 +678,7 @@ export default function App() {
     gameSync.broadcast({
       type: 'SYNC_FULL_STATE',
       state: {
+        round: roundRef.current,
         gameMode: 'JEOPARDY',
         phase: 'BOARD',
         teams,
@@ -642,6 +704,7 @@ export default function App() {
     gameSync.broadcast({
       type: 'SYNC_FULL_STATE',
       state: {
+        round: roundRef.current,
         gameMode: 'JEOPARDY',
         phase,
         teams,
@@ -674,6 +737,7 @@ export default function App() {
     gameSync.broadcast({
       type: 'SYNC_FULL_STATE',
       state: {
+        round: roundRef.current,
         gameMode,
         phase,
         teams: zeroed,
@@ -694,6 +758,8 @@ export default function App() {
     setActiveClueData(null);
     setIsDailyDoubleActive(false);
     setPhase('BOARD');
+    roundRef.current = 1;
+    setRound(1);
     soundFx.playCorrect();
 
     gameSync.broadcast({ type: 'RESET_SCORES' });
@@ -701,6 +767,7 @@ export default function App() {
     gameSync.broadcast({
       type: 'SYNC_FULL_STATE',
       state: {
+        round: roundRef.current,
         gameMode: 'JEOPARDY',
         phase: 'BOARD',
         teams: zeroed,
@@ -712,6 +779,43 @@ export default function App() {
     });
   };
 
+  // Advance to the Double Jeopardy round (fresh board, doubled values, 2 Daily Doubles)
+  const handleStartDoubleJeopardy = () => {
+    soundFx.initCtx();
+    soundFx.stopThinkMusic();
+    soundFx.stopSpeaking();
+    const nextData: JeopardyGameData = { ...gameData, doubleJeopardy: buildDoubleJeopardy(gameData) };
+    roundRef.current = 2;
+    setRound(2);
+    setGameData(nextData);
+    setUsedClues(new Set());
+    setActiveClueData(null);
+    setIsDailyDoubleActive(false);
+    setPhase('BOARD');
+    gameSync.broadcast({
+      type: 'SYNC_FULL_STATE',
+      state: {
+        round: 2,
+        gameMode: 'JEOPARDY',
+        phase: 'BOARD',
+        teams,
+        gameData: nextData,
+        usedClues: [],
+        activeClueData: null,
+        isDailyDoubleActive: false
+      }
+    });
+  };
+
+  const handleGoToFinal = () => {
+    soundFx.stopThinkMusic();
+    soundFx.stopSpeaking();
+    setPhase('FINAL_JEOPARDY');
+    gameSync.broadcast({ type: 'GO_TO_FINAL_JEOPARDY' });
+  };
+
+  const boardCleared = phase === 'BOARD' && !activeClueData && isBoardCleared(activeCategories, usedClues);
+
   // Full reset back to Setup with $0 scores
   const handleFullResetToSetup = () => {
     soundFx.stopThinkMusic();
@@ -722,6 +826,8 @@ export default function App() {
     setActiveClueData(null);
     setIsDailyDoubleActive(false);
     setPhase('SETUP');
+    roundRef.current = 1;
+    setRound(1);
     handleClearSavedGame();
     gameSync.broadcast({ type: 'RESET_GAME' });
   };
@@ -1167,8 +1273,25 @@ export default function App() {
         {/* PHASE 2: MAIN JEOPARDY BOARD */}
         {phase === 'BOARD' && (
           <div className="flex-1 flex flex-col justify-between gap-3 sm:gap-4">
+            {boardCleared && (
+              <div className="round-complete-banner flex flex-col sm:flex-row items-center justify-center gap-3 bg-[#030852] border-2 border-[#ffcc00] rounded-xl px-4 py-3 shadow-[0_0_30px_rgba(255,204,0,0.35)]">
+                <span className="font-jeopardy-display text-[#ffcc00] text-xl sm:text-2xl uppercase tracking-wider">
+                  {round === 1 ? 'That clears the Jeopardy! round' : 'The board is clear'}
+                </span>
+                {role === 'host' && (
+                  <button
+                    type="button"
+                    onClick={round === 1 ? handleStartDoubleJeopardy : handleGoToFinal}
+                    className="px-5 py-2 bg-[#ffcc00] hover:bg-[#ffe066] text-[#030852] font-jeopardy-display uppercase tracking-wider rounded-lg cursor-pointer"
+                  >
+                    {round === 1 ? 'On to Double Jeopardy!' : 'On to Final Jeopardy!'}
+                  </button>
+                )}
+              </div>
+            )}
             <JeopardyBoard
-              categories={gameData.categories}
+              categories={activeCategories}
+              round={round}
               usedClues={usedClues}
               onSelectClue={handleSelectClue}
             />
@@ -1217,17 +1340,25 @@ export default function App() {
                   </button>
                 )}
 
+                {round === 1 && (
+                  <button
+                    type="button"
+                    onClick={handleStartDoubleJeopardy}
+                    className="px-4 py-2 bg-gradient-to-r from-[#0b15ff] to-[#060CE9] hover:from-[#2a33ff] hover:to-[#1a22ff] text-[#ffcc00] border-2 border-[#ffcc00] font-jeopardy-display uppercase tracking-wider text-sm sm:text-base rounded-lg shadow-md flex items-center gap-1.5 transition-transform hover:scale-105 cursor-pointer"
+                  >
+                    <Flame className="w-4 h-4" /> Double Jeopardy!
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => {
-                    soundFx.stopThinkMusic();
-                    soundFx.stopSpeaking();
-                    setPhase('FINAL_JEOPARDY');
-                    gameSync.broadcast({ type: 'GO_TO_FINAL_JEOPARDY' });
-                  }}
-                  className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-[#030852] font-bold text-xs sm:text-sm rounded-lg shadow-md flex items-center gap-1.5 transition-transform hover:scale-105 cursor-pointer"
+                  onClick={handleGoToFinal}
+                  className={`px-4 py-2 font-bold text-xs sm:text-sm rounded-lg shadow-md flex items-center gap-1.5 transition-transform hover:scale-105 cursor-pointer ${
+                    round === 2
+                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-[#030852]'
+                      : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700'
+                  }`}
                 >
-                  <Trophy className="w-4 h-4" /> Go to Final Jeopardy
+                  <Trophy className="w-4 h-4" /> {round === 1 ? 'Skip to Final' : 'Go to Final Jeopardy'}
                 </button>
               </div>
             </div>
@@ -1267,6 +1398,7 @@ export default function App() {
           categoryTitle={activeClueData.categoryTitle}
           teams={teams}
           role={role}
+          wagerFloor={roundWagerFloor(round)}
           onConfirmWager={handleConfirmDailyDoubleWager}
         />
       )}
@@ -1295,7 +1427,7 @@ export default function App() {
       {/* 4. Host Admin & Answer Sheet Modal */}
       {showHostSheetModal && (
         <HostSheetModal
-          gameData={gameData}
+          gameData={{ ...gameData, categories: activeCategories }}
           usedClues={usedClues}
           onSelectClue={(catIdx, clueIdx) => {
             setShowHostSheetModal(false);
@@ -1316,6 +1448,7 @@ export default function App() {
             gameSync.broadcast({
               type: 'SYNC_FULL_STATE',
               state: {
+                round: roundRef.current,
                 gameMode,
                 phase,
                 teams: updated,
@@ -1369,6 +1502,7 @@ export default function App() {
             gameSync.broadcast({
               type: 'SYNC_FULL_STATE',
               state: {
+                round: roundRef.current,
                 gameMode,
                 phase,
                 teams,
@@ -1438,6 +1572,9 @@ export default function App() {
       <footer className="text-center py-2 text-xs text-slate-500 border-t border-slate-900 bg-[#01031b]">
         Family Jeopardy · Multi-Screen TV Display & Host Controller · Raspberry Pi & Docker Offline Ready
       </footer>
+      {splash && (
+        <RoundSplash key={splash.key} title={splash.title} subtitle={splash.subtitle} onDone={() => setSplash(null)} />
+      )}
     </div>
   );
 }

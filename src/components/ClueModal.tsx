@@ -455,7 +455,7 @@ export const ClueModal: React.FC<ClueModalProps> = ({
   const modalContent = (
     <div
       data-modal-overlay="true"
-      className="fixed inset-0 z-50 bg-[#010314]/95 backdrop-blur-md flex items-center justify-center p-2 sm:p-5 overflow-y-auto"
+      className="clue-zoom-in fixed inset-0 z-50 bg-[#010314]/95 backdrop-blur-md flex items-center justify-center p-2 sm:p-5 overflow-y-auto"
       style={{
         position: 'fixed',
         top: 0,
@@ -699,7 +699,7 @@ export const ClueModal: React.FC<ClueModalProps> = ({
 
           {/* Clue Prompt Text - Extra bold and scaled up for Living Room TV viewing */}
           <div
-            className={`font-jeopardy-serif text-white ${
+            className={`clue-text-show font-jeopardy-serif text-white ${
               role === 'tv'
                 ? 'text-2xl sm:text-4xl md:text-5xl lg:text-5xl font-bold leading-relaxed sm:leading-snug py-2'
                 : 'text-xl sm:text-2xl md:text-3xl lg:text-4xl leading-relaxed sm:leading-relaxed'

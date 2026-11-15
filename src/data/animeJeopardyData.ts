@@ -33,6 +33,8 @@ export interface JeopardyGameData {
   title: string;
   subtitle: string;
   categories: CategoryItem[];
+  /** Optional authored Double Jeopardy board (values are re-scaled to $400–$2,000). */
+  doubleJeopardy?: CategoryItem[];
   finalJeopardy: FinalJeopardyItem;
 }
 
