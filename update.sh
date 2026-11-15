@@ -19,9 +19,15 @@ echo -e "${CYAN}=====================================================${NC}"
 echo -e "${CYAN}   Family Jeopardy - Automated Update Script        ${NC}"
 echo -e "${CYAN}=====================================================${NC}"
 
-# Navigate to the script's directory (workspace root)
+# Work in the project folder: prefer the folder you ran this from if it has
+# docker-compose.yml (so a copy of this script on your PATH still works),
+# otherwise use the folder this script lives in.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$PWD/docker-compose.yml" ]; then
+    SCRIPT_DIR="$PWD"
+fi
 cd "$SCRIPT_DIR"
+echo -e "Project folder: ${CYAN}$SCRIPT_DIR${NC}"
 
 # 1. Pull latest code from git if inside a git repository
 if [ -d ".git" ]; then
@@ -31,7 +37,9 @@ if [ -d ".git" ]; then
     git reset --hard "origin/$CURRENT_BRANCH"
     echo -e "${GREEN}✓ Successfully updated to latest commit on $CURRENT_BRANCH.${NC}"
 else
-    echo -e "\n${YELLOW}[1/4] Not a git clone; skipping git pull...${NC}"
+    echo -e "\n${YELLOW}[1/4] Not a git clone; skipping git pull.${NC}"
+    echo -e "To get updates, clone the repo instead of copying files:"
+    echo -e "  git clone https://github.com/AstroLee93/Jeopardy-Night.git"
 fi
 
 # Make sure we are in the folder that holds docker-compose.yml
