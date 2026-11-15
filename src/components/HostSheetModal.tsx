@@ -191,11 +191,11 @@ export const HostSheetModal: React.FC<HostSheetModalProps> = ({
                                   onClose();
                                 }
                               }}
-                              className="mt-1.5 w-full py-1 bg-amber-500 hover:bg-amber-400 text-[#02052c] font-bold text-xs rounded shadow flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                              className="mt-1.5 w-full py-1 host-row-action font-bold text-xs rounded shadow flex items-center justify-center gap-1 cursor-pointer transition-colors"
                               title="Pushes this question to the TV screen and opens it"
                             >
                               <Play className="w-3 h-3 fill-current" />
-                              <span>▶ Show Clue on TV</span>
+                              <span>Show on TV</span>
                             </button>
                           )}
                         </div>

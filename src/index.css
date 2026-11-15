@@ -1239,3 +1239,231 @@
   border-radius: 14px;
   box-shadow: inset 0 0 0 3px #6b7686, 0 0 0 3px #000, 0 30px 80px rgba(0, 0, 0, 0.7);
 }
+
+/* ===================== Host dialog interiors =====================
+   Unlayered rules scoped to .host-panel, so they win over Tailwind's
+   utility layer without touching each component's markup. */
+.host-panel {
+  --well: #070c3a;
+  --line: rgba(255, 255, 255, 0.1);
+  --ink: #e6e8ff;
+  --ink-soft: #a9afe0;
+  --answer-green: #7fe0a8;
+  color: var(--ink);
+}
+
+/* Surfaces: one well style instead of six near-black variants */
+.host-panel [class~="bg-[#02052c]"],
+.host-panel [class~="bg-slate-900"],
+.host-panel [class~="bg-slate-900/90"],
+.host-panel [class~="bg-slate-900/80"],
+.host-panel [class~="bg-slate-900/60"],
+.host-panel [class~="bg-black/60"],
+.host-panel [class~="bg-black/50"],
+.host-panel [class~="bg-black/40"],
+.host-panel [class~="bg-black/80"],
+.host-panel [class~="bg-[#030833]"],
+.host-panel [class~="bg-[#02072e]"] {
+  background: var(--well);
+}
+.host-panel [class*="border-slate-"],
+.host-panel [class~="border-amber-500/40"],
+.host-panel [class~="border-amber-500/30"],
+.host-panel [class~="border-amber-500/50"],
+.host-panel [class*="border-cyan-"],
+.host-panel [class*="border-purple-"] {
+  border-color: var(--line);
+}
+
+/* Corners carry hierarchy: panel 6px, wells 6px, controls 4px */
+.host-panel [class~="rounded-xl"],
+.host-panel [class~="rounded-2xl"] {
+  border-radius: 6px;
+}
+.host-panel [class~="rounded-lg"],
+.host-panel [class~="rounded"] {
+  border-radius: 4px;
+}
+
+/* Text: gold for emphasis, green only for answers, everything else neutral */
+.host-panel [class~="text-[#ffcc00]"],
+.host-panel [class~="text-amber-300"],
+.host-panel [class~="text-amber-400"],
+.host-panel [class~="text-amber-200"] {
+  color: var(--marquee-gold);
+}
+.host-panel [class~="text-emerald-300"],
+.host-panel [class~="text-emerald-400"] {
+  color: var(--answer-green);
+}
+.host-panel [class~="text-cyan-200"],
+.host-panel [class~="text-cyan-300"],
+.host-panel [class~="text-cyan-400"],
+.host-panel [class~="text-purple-300"],
+.host-panel [class~="text-purple-200"],
+.host-panel [class~="text-slate-300"],
+.host-panel [class~="text-slate-200"] {
+  color: var(--ink);
+}
+.host-panel [class~="text-slate-400"],
+.host-panel [class~="text-slate-500"] {
+  color: var(--ink-soft);
+}
+.host-panel [class~="text-[10px]"],
+.host-panel [class~="text-[11px]"] {
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+/* Secondary buttons and chips */
+.host-panel button[class*="bg-slate-8"],
+.host-panel button[class*="bg-slate-7"],
+.host-panel a[class*="bg-slate-8"],
+.host-panel button[class*="bg-cyan-9"],
+.host-panel button[class*="bg-emerald-9"],
+.host-panel button[class*="bg-purple-9"],
+.host-panel button[class~="bg-amber-500/20"],
+.host-panel button[class~="bg-amber-500/10"] {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--ink);
+}
+.host-panel button[class*="bg-slate-8"]:hover,
+.host-panel button[class*="bg-slate-7"]:hover,
+.host-panel a[class*="bg-slate-8"]:hover,
+.host-panel button[class*="bg-cyan-9"]:hover,
+.host-panel button[class*="bg-emerald-9"]:hover,
+.host-panel button[class*="bg-purple-9"]:hover,
+.host-panel button[class~="bg-amber-500/20"]:hover,
+.host-panel button[class~="bg-amber-500/10"]:hover {
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+}
+.host-panel span[class~="bg-amber-500/20"],
+.host-panel div[class~="bg-amber-500/20"],
+.host-panel span[class~="bg-amber-500/10"],
+.host-panel div[class~="bg-amber-500/10"],
+.host-panel [class*="bg-cyan-950"],
+.host-panel [class*="bg-purple-950"],
+.host-panel [class*="bg-indigo-950"] {
+  background: rgba(245, 184, 61, 0.08);
+  border-color: rgba(245, 184, 61, 0.3);
+}
+.host-panel div[class*="bg-emerald-950"],
+.host-panel span[class*="bg-emerald-950"] {
+  background: rgba(127, 224, 168, 0.08);
+  border-color: rgba(127, 224, 168, 0.3);
+}
+
+/* Primary actions: one gold, one shape */
+.host-panel button[class~="bg-[#ffcc00]"],
+.host-panel button[class*="from-amber-"],
+.host-panel button[class*="from-[#ffcc00]"],
+.host-panel button[class*="from-purple-"],
+.host-panel button[class*="from-indigo-"],
+.host-panel button[class*="bg-emerald-6"],
+.host-panel button[class*="bg-cyan-6"],
+.host-panel button[class*="bg-purple-6"],
+.host-panel button[class*="bg-purple-7"] {
+  background: var(--marquee-gold);
+  background-image: none;
+  color: var(--night-stage);
+  border: 2px solid #000;
+  box-shadow: none;
+}
+.host-panel button[class~="bg-[#ffcc00]"]:hover,
+.host-panel button[class*="from-amber-"]:hover,
+.host-panel button[class*="from-[#ffcc00]"]:hover,
+.host-panel button[class*="from-purple-"]:hover,
+.host-panel button[class*="from-indigo-"]:hover,
+.host-panel button[class*="bg-emerald-6"]:hover,
+.host-panel button[class*="bg-cyan-6"]:hover,
+.host-panel button[class*="bg-purple-6"]:hover,
+.host-panel button[class*="bg-purple-7"]:hover {
+  background: #ffc95e;
+}
+.host-panel button[class~="bg-[#ffcc00]"] *,
+.host-panel button[class*="from-purple-"] *,
+.host-panel button[class*="bg-emerald-6"] *,
+.host-panel button[class*="bg-cyan-6"] * {
+  color: inherit;
+}
+.host-panel button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Destructive actions stay red, but one red */
+.host-panel button[class*="bg-red-"] {
+  background: rgba(229, 72, 77, 0.14);
+  border: 1px solid rgba(229, 72, 77, 0.5);
+  color: #ffb3b5;
+}
+.host-panel button[class*="bg-red-"]:hover {
+  background: var(--wrong-red);
+  color: #fff;
+}
+
+/* Form fields */
+.host-panel input[type="text"],
+.host-panel input[type="number"],
+.host-panel input[type="url"],
+.host-panel input:not([type]),
+.host-panel textarea,
+.host-panel select {
+  background: #040830;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+  color: #fff;
+}
+.host-panel input::placeholder,
+.host-panel textarea::placeholder {
+  color: rgba(169, 175, 224, 0.6);
+}
+.host-panel input:focus,
+.host-panel textarea:focus,
+.host-panel select:focus {
+  border-color: var(--marquee-gold);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(245, 184, 61, 0.35);
+}
+.host-panel input[type="range"] {
+  accent-color: var(--marquee-gold);
+}
+.host-panel code,
+.host-panel pre {
+  background: #02041c;
+  border-color: var(--line);
+  color: #e6e8ff;
+}
+
+/* Dividers */
+.host-panel [class~="border-t"],
+.host-panel [class~="border-b"] {
+  border-color: var(--line);
+}
+
+/* Drop decorative glows inside dialogs */
+.host-panel [class*="blur-3xl"] {
+  display: none;
+}
+.host-panel [class*="shadow-"]:not(.host-panel) {
+  box-shadow: none;
+}
+/* Repeated per-row actions stay quiet until hovered */
+.host-panel .host-row-action {
+  background: transparent;
+  border: 1px solid rgba(245, 184, 61, 0.45);
+  color: var(--marquee-gold);
+  box-shadow: none;
+}
+.host-panel .host-row-action:hover {
+  background: var(--marquee-gold);
+  color: var(--night-stage);
+}
+.host-panel button[class~="bg-amber-500"],
+.host-panel button[class~="bg-amber-600"] {
+  background: var(--marquee-gold);
+  color: var(--night-stage);
+  border: 2px solid #000;
+}
