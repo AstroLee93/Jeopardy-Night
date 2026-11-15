@@ -34,6 +34,18 @@ else
     echo -e "\n${YELLOW}[1/4] Not a git clone; skipping git pull...${NC}"
 fi
 
+# Make sure we are in the folder that holds docker-compose.yml
+if [ ! -f "docker-compose.yml" ] && [ ! -f "compose.yaml" ] && [ ! -f "docker-compose.yaml" ]; then
+    echo -e "${RED}Error: no docker-compose.yml in $SCRIPT_DIR.${NC}"
+    echo -e "Run the update.sh that lives inside your Jeopardy-Night folder, e.g.:"
+    echo -e "  cd ~/family-jeopardy/Jeopardy-Night && ./update.sh"
+    exit 1
+fi
+
+# The port the container publishes (matches PORT in docker-compose.yml)
+APP_PORT="${APP_PORT:-$(grep -Eo '"?[0-9]+:[0-9]+"?' docker-compose.yml 2>/dev/null | head -1 | tr -d '"' | cut -d: -f1)}"
+APP_PORT="${APP_PORT:-3002}"
+
 # 2. Check for docker compose binary
 echo -e "\n${YELLOW}[2/4] Detecting Docker Compose...${NC}"
 if docker compose version >/dev/null 2>&1; then
@@ -56,7 +68,7 @@ echo -e "${YELLOW}Cleaning up dangling Docker images...${NC}"
 docker image prune -f >/dev/null 2>&1 || true
 
 # 4. Verification and Health Check
-echo -e "\n${YELLOW}[4/4] Verifying server health on port 3000...${NC}"
+echo -e "\n${YELLOW}[4/4] Verifying server health on port ${APP_PORT}...${NC}"
 sleep 3
 
 MAX_RETRIES=10
@@ -64,7 +76,7 @@ RETRY_COUNT=0
 HEALTHY=false
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if curl -s -f -o /dev/null "http://localhost:3000"; then
+    if curl -s -f -o /dev/null "http://localhost:${APP_PORT}"; then
         HEALTHY=true
         break
     fi
@@ -79,12 +91,12 @@ if [ "$HEALTHY" = true ]; then
     echo -e "${GREEN}   Family Jeopardy is UP and RUNNING!                ${NC}"
     echo -e "${GREEN}=====================================================${NC}"
     echo -e "Access the game from any device on your Wi-Fi:"
-    echo -e "  - Living Room TV:     ${CYAN}http://${LOCAL_IP}:3000?role=tv${NC}"
-    echo -e "  - Host Controller:    ${CYAN}http://${LOCAL_IP}:3000?role=host${NC}"
-    echo -e "  - Main Board:         ${CYAN}http://${LOCAL_IP}:3000${NC}"
+    echo -e "  - Living Room TV:     ${CYAN}http://${LOCAL_IP}:${APP_PORT}?role=tv${NC}"
+    echo -e "  - Host Controller:    ${CYAN}http://${LOCAL_IP}:${APP_PORT}?role=host${NC}"
+    echo -e "  - Main Board:         ${CYAN}http://${LOCAL_IP}:${APP_PORT}${NC}"
     echo -e "${GREEN}=====================================================${NC}"
 else
-    echo -e "\n${RED}Warning: Server did not respond on http://localhost:3000 within 20s.${NC}"
+    echo -e "\n${RED}Warning: Server did not respond on http://localhost:${APP_PORT} within 20s.${NC}"
     echo -e "Run 'docker logs family-jeopardy' to inspect server logs."
     exit 1
 fi
