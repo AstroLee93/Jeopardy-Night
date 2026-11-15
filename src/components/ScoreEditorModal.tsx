@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Team } from './ScoreBoard';
+import type { Team } from './ScoreBoard';
 import { X, Check, Plus, Minus, RotateCcw } from 'lucide-react';
 
 interface ScoreEditorModalProps {

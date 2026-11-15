@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { JeopardyGameData, ClueItem } from '../data/animeJeopardyData';
+import type { JeopardyGameData, ClueItem } from '../data/animeJeopardyData';
 import { AiQuestionGeneratorModal } from './AiQuestionGeneratorModal';
 import { Copy, Check, Download, Edit3, X, Save, Sparkles, Image as ImageIcon, Camera, Search, Loader2 } from 'lucide-react';
 

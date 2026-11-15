@@ -1,4 +1,4 @@
-import { CategoryItem, JeopardyGameData } from '../data/animeJeopardyData';
+import type { CategoryItem, JeopardyGameData } from '../data/animeJeopardyData';
 import { CURATED_BOARDS } from '../data/curatedAnimeBoards';
 import { INITIAL_ANIME_DATA } from '../data/animeJeopardyData';
 

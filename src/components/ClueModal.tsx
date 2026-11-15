@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ClueItem } from '../data/animeJeopardyData';
-import { Team } from './ScoreBoard';
+import type { ClueItem } from '../data/animeJeopardyData';
+import type { Team } from './ScoreBoard';
 import { soundFx } from '../utils/audioSynth';
-import { gameSync, ScreenRole } from '../utils/gameSync';
+import { gameSync, type ScreenRole } from '../utils/gameSync';
 import { 
   Check, 
   X, 

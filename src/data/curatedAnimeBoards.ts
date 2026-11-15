@@ -1,4 +1,4 @@
-import { JeopardyGameData } from './animeJeopardyData';
+import type { JeopardyGameData } from './animeJeopardyData';
 
 export const CURATED_BOARDS: Record<string, JeopardyGameData> = {
   'all-stars': {

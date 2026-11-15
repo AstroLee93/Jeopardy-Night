@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Team } from './ScoreBoard';
+import type { Team } from './ScoreBoard';
 import { Podium } from './Podium';
 import { soundFx } from '../utils/audioSynth';
 import { RotateCcw, Play } from 'lucide-react';

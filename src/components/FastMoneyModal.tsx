@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { FastMoneyItem } from '../data/familyFeudData';
+import type { FastMoneyItem } from '../data/familyFeudData';
 import { soundFx } from '../utils/audioSynth';
-import { gameSync, ScreenRole } from '../utils/gameSync';
+import { gameSync, type ScreenRole } from '../utils/gameSync';
 import { 
   Clock, 
   Play, 

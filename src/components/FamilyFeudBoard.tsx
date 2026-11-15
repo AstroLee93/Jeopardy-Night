@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { FeudGameData, FeudQuestion, FeudAnswer } from '../data/familyFeudData';
+import type { FeudGameData, FeudQuestion, FeudAnswer } from '../data/familyFeudData';
 import { CURATED_FEUD_GAMES } from '../data/curatedFeudData';
-import { Team } from './ScoreBoard';
+import type { Team } from './ScoreBoard';
 import { FastMoneyModal } from './FastMoneyModal';
 import { AiFeudGeneratorModal } from './AiFeudGeneratorModal';
 import { soundFx } from '../utils/audioSynth';
-import { gameSync, ScreenRole } from '../utils/gameSync';
+import { gameSync, type ScreenRole } from '../utils/gameSync';
 import { 
   Trophy, 
   X, 

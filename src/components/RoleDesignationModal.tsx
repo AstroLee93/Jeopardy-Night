@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ScreenRole } from '../utils/gameSync';
+import type { ScreenRole } from '../utils/gameSync';
 import { Tv, Crown, ExternalLink, Copy, Check, X, Smartphone, Monitor } from 'lucide-react';
 
 interface RoleDesignationModalProps {

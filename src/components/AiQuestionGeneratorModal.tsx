@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { JeopardyGameData, CategoryItem } from '../data/animeJeopardyData';
+import type { JeopardyGameData, CategoryItem } from '../data/animeJeopardyData';
 import { CURATED_BOARDS } from '../data/curatedAnimeBoards';
 import { 
   Sparkles, 

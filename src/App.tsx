@@ -4,9 +4,9 @@
  */
 
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { INITIAL_ANIME_DATA, JeopardyGameData, ClueItem } from './data/animeJeopardyData';
+import { INITIAL_ANIME_DATA, type JeopardyGameData, type ClueItem } from './data/animeJeopardyData';
 import { JeopardyBoard } from './components/JeopardyBoard';
-import { ScoreBoard, Team } from './components/ScoreBoard';
+import { ScoreBoard, type Team } from './components/ScoreBoard';
 import { Podium } from './components/Podium';
 import { ClueModal } from './components/ClueModal';
 import { DailyDoubleModal } from './components/DailyDoubleModal';
@@ -22,8 +22,8 @@ import { RoleDesignationModal } from './components/RoleDesignationModal';
 import { FamilyFeudBoard } from './components/FamilyFeudBoard';
 import { TvLobbyWaitingScreen } from './components/TvLobbyWaitingScreen';
 import { soundFx } from './utils/audioSynth';
-import { gameSync, ScreenRole } from './utils/gameSync';
-import { RoundNumber, buildDoubleJeopardy, isBoardCleared, roundWagerFloor } from './utils/rounds';
+import { gameSync, type ScreenRole } from './utils/gameSync';
+import { type RoundNumber, buildDoubleJeopardy, isBoardCleared, roundWagerFloor } from './utils/rounds';
 import { RoundSplash } from './components/RoundSplash';
 import { 
   Volume2, 

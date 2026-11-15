@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { FinalJeopardyItem } from '../data/animeJeopardyData';
-import { Team } from './ScoreBoard';
+import type { FinalJeopardyItem } from '../data/animeJeopardyData';
+import type { Team } from './ScoreBoard';
 import { Podium } from './Podium';
 import { soundFx } from '../utils/audioSynth';
-import { gameSync, ScreenRole } from '../utils/gameSync';
+import { gameSync, type ScreenRole } from '../utils/gameSync';
 import { Check, X } from 'lucide-react';
 
 interface FinalJeopardyModalProps {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FeudGameData } from '../data/familyFeudData';
+import type { FeudGameData } from '../data/familyFeudData';
 import { CURATED_FEUD_GAMES } from '../data/curatedFeudData';
 import { Sparkles, RefreshCw, Check, X, AlertCircle, Trophy, HelpCircle } from 'lucide-react';
 

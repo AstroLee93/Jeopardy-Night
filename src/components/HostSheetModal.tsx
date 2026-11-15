@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { JeopardyGameData } from '../data/animeJeopardyData';
+import type { JeopardyGameData } from '../data/animeJeopardyData';
 import { ShieldCheck, X, Search, Printer, Trophy, Play } from 'lucide-react';
 
 interface HostSheetModalProps {

@@ -1,4 +1,4 @@
-import { FeudGameData } from './familyFeudData';
+import type { FeudGameData } from './familyFeudData';
 
 export const CURATED_FEUD_GAMES: Record<string, FeudGameData> = {
   'anime-all-stars': {

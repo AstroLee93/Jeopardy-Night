@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ClueItem } from '../data/animeJeopardyData';
-import { Team } from './ScoreBoard';
+import type { ClueItem } from '../data/animeJeopardyData';
+import type { Team } from './ScoreBoard';
 import { soundFx } from '../utils/audioSynth';
-import { ScreenRole } from '../utils/gameSync';
+import type { ScreenRole } from '../utils/gameSync';
 
 
 interface DailyDoubleModalProps {

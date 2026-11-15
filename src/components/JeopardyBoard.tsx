@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { CategoryItem } from '../data/animeJeopardyData';
+import type { CategoryItem } from '../data/animeJeopardyData';
 import { Image as ImageIcon } from 'lucide-react';
 import { soundFx } from '../utils/audioSynth';
 
