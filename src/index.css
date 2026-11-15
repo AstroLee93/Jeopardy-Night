@@ -1467,3 +1467,72 @@
   color: var(--night-stage);
   border: 2px solid #000;
 }
+.feud-team {
+  --team: #c9d1dc;
+  background: #000;
+  border: 3px solid #3a4352;
+  border-radius: 8px;
+  box-shadow: inset 0 0 18px rgba(255, 138, 31, 0.12);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.feud-team-on {
+  border-color: var(--team);
+  box-shadow: inset 0 0 18px rgba(255, 138, 31, 0.2), 0 0 22px var(--team);
+}
+.feud-team-name {
+  font-size: clamp(1.1rem, 1.8vw, 1.5rem);
+  display: block;
+  margin-bottom: 0.15rem;
+}
+.feud-turn {
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.7rem;
+  border-radius: 4px;
+  color: #a9afe0;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+}
+.feud-turn:hover {
+  color: #fff;
+}
+.feud-turn-on {
+  background: var(--team);
+  color: #000;
+  border-color: #000;
+}
+.feud-turn:focus-visible {
+  outline: 2px solid var(--marquee-gold);
+  outline-offset: 2px;
+}
+.fast-money .fm-header {
+  background: #000;
+  border-bottom: 4px solid #c9d1dc;
+  color: #fff;
+}
+.fast-money .fm-header .font-jeopardy-display {
+  color: #ff8a1f;
+  text-shadow: 0 0 12px rgba(255, 138, 31, 0.5), 2px 2px 0 #000;
+}
+.fast-money .fm-question {
+  background: linear-gradient(180deg, #2a5ff0, #1747c9);
+  border-color: #000;
+}
+.fast-money .font-mono {
+  font-family: "Anton", Impact, sans-serif;
+  letter-spacing: 0.04em;
+}
+.fast-money [class*="text-4xl"].font-mono,
+.fast-money [class*="text-3xl"].font-mono {
+  color: #ff8a1f;
+  text-shadow: 0 0 12px rgba(255, 138, 31, 0.5);
+}
+.feud-quiet {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.feud-quiet:hover {
+  background: rgba(255, 255, 255, 0.16);
+}

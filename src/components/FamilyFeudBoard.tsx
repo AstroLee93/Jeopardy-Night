@@ -315,14 +315,9 @@ export const FamilyFeudBoard: React.FC<FamilyFeudBoardProps> = ({
         {/* Shiny background accent */}
 
         {/* Team 1 Score Podium */}
-        <div className={`col-span-4 sm:col-span-3 rounded-xl p-2 sm:p-3 border-2 transition-all text-center ${
-          activePlayingTeamIdx === 0
-            ? 'bg-red-950/80 border-red-500 shadow-lg shadow-red-500/20 ring-2 ring-red-400'
-            : 'bg-slate-900/80 border-slate-700'
-        }`}>
+        <div className={`feud-team col-span-4 sm:col-span-3 p-2 sm:p-3 text-center ${activePlayingTeamIdx === 0 ? 'feud-team-on' : ''}`} style={{ '--team': team1.color?.border } as React.CSSProperties}>
           <div className="flex items-center justify-center gap-1.5 mb-0.5">
-            <span className="text-sm sm:text-base">{team1.avatar || '🏴‍☠️'}</span>
-            <span className="font-bold text-white text-xs sm:text-sm truncate">{team1.name}</span>
+            <span className="podium-name feud-team-name">{team1.name}</span>
           </div>
           <div className="feud-digits text-3xl sm:text-5xl">
             {team1.score}
@@ -331,11 +326,10 @@ export const FamilyFeudBoard: React.FC<FamilyFeudBoardProps> = ({
             <button
               type="button"
               onClick={() => handleSelectPlayingTeam(0)}
-              className={`mt-1 text-[10px] uppercase font-bold px-2 py-0.5 rounded cursor-pointer ${
-                activePlayingTeamIdx === 0 ? 'bg-red-500 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
-              }`}
+              className={`feud-turn ${activePlayingTeamIdx === 0 ? 'feud-turn-on' : ''}`}
+              aria-pressed={activePlayingTeamIdx === 0}
             >
-              Playing Turn
+              {activePlayingTeamIdx === 0 ? 'Playing' : 'Give control'}
             </button>
           )}
         </div>
@@ -365,14 +359,9 @@ export const FamilyFeudBoard: React.FC<FamilyFeudBoardProps> = ({
         </div>
 
         {/* Team 2 Score Podium */}
-        <div className={`col-span-4 sm:col-span-3 rounded-xl p-2 sm:p-3 border-2 transition-all text-center ${
-          activePlayingTeamIdx === 1
-            ? 'bg-blue-950/80 border-blue-500 shadow-lg shadow-blue-500/20 ring-2 ring-blue-400'
-            : 'bg-slate-900/80 border-slate-700'
-        }`}>
+        <div className={`feud-team col-span-4 sm:col-span-3 p-2 sm:p-3 text-center ${activePlayingTeamIdx === 1 ? 'feud-team-on' : ''}`} style={{ '--team': team2.color?.border } as React.CSSProperties}>
           <div className="flex items-center justify-center gap-1.5 mb-0.5">
-            <span className="text-sm sm:text-base">{team2.avatar || '⚡'}</span>
-            <span className="font-bold text-white text-xs sm:text-sm truncate">{team2.name}</span>
+            <span className="podium-name feud-team-name">{team2.name}</span>
           </div>
           <div className="feud-digits text-3xl sm:text-5xl">
             {team2.score}
@@ -381,11 +370,10 @@ export const FamilyFeudBoard: React.FC<FamilyFeudBoardProps> = ({
             <button
               type="button"
               onClick={() => handleSelectPlayingTeam(1)}
-              className={`mt-1 text-[10px] uppercase font-bold px-2 py-0.5 rounded cursor-pointer ${
-                activePlayingTeamIdx === 1 ? 'bg-blue-500 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
-              }`}
+              className={`feud-turn ${activePlayingTeamIdx === 1 ? 'feud-turn-on' : ''}`}
+              aria-pressed={activePlayingTeamIdx === 1}
             >
-              Playing Turn
+              {activePlayingTeamIdx === 1 ? 'Playing' : 'Give control'}
             </button>
           )}
         </div>
@@ -574,7 +562,7 @@ export const FamilyFeudBoard: React.FC<FamilyFeudBoardProps> = ({
             <button
               type="button"
               onClick={() => setShowAiFeudModal(true)}
-              className="px-3 py-1.5 bg-purple-700 hover:bg-purple-600 text-white font-bold rounded-lg cursor-pointer flex items-center gap-1"
+              className="px-3 py-1.5 feud-quiet text-white font-bold rounded-lg cursor-pointer flex items-center gap-1"
             >
               <Sparkles className="w-3.5 h-3.5 text-[#ffcc00]" />
               <span>AI Feud</span>

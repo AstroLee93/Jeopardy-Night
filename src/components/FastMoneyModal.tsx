@@ -495,11 +495,11 @@ export const FastMoneyModal: React.FC<FastMoneyModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/92 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
-      <div className="feud-stage fast-money w-full max-w-5xl overflow-hidden flex flex-col max-h-[96vh]">
+      <div className="host-panel feud-stage fast-money w-full max-w-5xl overflow-hidden flex flex-col max-h-[96vh]">
         {/* =====================================================================
             1. TOP MARQUEE: Authentic Television Banner & Stage Indicator
             ===================================================================== */}
-        <div className="bg-gradient-to-r from-amber-600 via-[#ffcc00] to-amber-600 p-2.5 sm:p-3.5 text-[#02052c] font-black tracking-widest relative shadow-lg">
+        <div className="fm-header p-2.5 sm:p-3.5 font-black relative">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <span className="text-base sm:text-xl">🌟</span>
@@ -669,7 +669,7 @@ export const FastMoneyModal: React.FC<FastMoneyModalProps> = ({
             4. ACTIVE QUESTION SPOTLIGHT (Steve Harvey Reading Card)
             ===================================================================== */}
         {(stage === 'PLAYER1' || stage === 'PLAYER2') && (
-          <div className="bg-gradient-to-r from-[#031569] via-[#082094] to-[#031569] border-y-2 border-[#ffcc00] px-4 py-3 sm:py-4 shadow-xl">
+          <div className="fm-question border-y-2 px-4 py-3 sm:py-4 shadow-xl">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs font-black tracking-widest text-[#ffcc00] uppercase flex items-center gap-1.5">
                 <span>QUESTION {activeQIndex + 1} OF {questions.length}</span>
