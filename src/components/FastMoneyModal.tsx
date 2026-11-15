@@ -495,7 +495,7 @@ export const FastMoneyModal: React.FC<FastMoneyModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/92 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-[#02072e] border-4 border-[#ffcc00] rounded-2xl w-full max-w-5xl shadow-[0_0_50px_rgba(255,204,0,0.3)] overflow-hidden flex flex-col max-h-[96vh]">
+      <div className="feud-stage fast-money w-full max-w-5xl overflow-hidden flex flex-col max-h-[96vh]">
         {/* =====================================================================
             1. TOP MARQUEE: Authentic Television Banner & Stage Indicator
             ===================================================================== */}

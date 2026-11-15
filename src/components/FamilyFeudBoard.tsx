@@ -309,11 +309,10 @@ export const FamilyFeudBoard: React.FC<FamilyFeudBoardProps> = ({
   }, [role]);
 
   return (
-    <div className="flex flex-col flex-1 w-full max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-3 gap-3">
+    <div className="feud-stage flex flex-col flex-1 w-full max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-3 gap-3">
       {/* 1. TOP MARQUEE: Family 1 vs THE BANK vs Family 2 */}
-      <div className="grid grid-cols-12 gap-2 sm:gap-4 items-center bg-[#02052c] border-2 border-amber-500/80 rounded-2xl p-2.5 sm:p-4 shadow-2xl relative overflow-hidden">
+      <div className="feud-scorebar grid grid-cols-12 gap-2 sm:gap-4 items-center p-2.5 sm:p-4 relative overflow-hidden">
         {/* Shiny background accent */}
-        <div className="absolute inset-0 bg-gradient-to-r from-red-600/10 via-amber-500/15 to-blue-600/10 pointer-events-none" />
 
         {/* Team 1 Score Podium */}
         <div className={`col-span-4 sm:col-span-3 rounded-xl p-2 sm:p-3 border-2 transition-all text-center ${
@@ -325,7 +324,7 @@ export const FamilyFeudBoard: React.FC<FamilyFeudBoardProps> = ({
             <span className="text-sm sm:text-base">{team1.avatar || '🏴‍☠️'}</span>
             <span className="font-bold text-white text-xs sm:text-sm truncate">{team1.name}</span>
           </div>
-          <div className="font-mono text-2xl sm:text-4xl font-black text-[#ffcc00] tracking-wider drop-shadow">
+          <div className="feud-digits text-3xl sm:text-5xl">
             {team1.score}
           </div>
           {role === 'host' && (
@@ -346,8 +345,8 @@ export const FamilyFeudBoard: React.FC<FamilyFeudBoardProps> = ({
           <span className="text-[10px] sm:text-xs font-black tracking-widest text-amber-300 uppercase block mb-0.5">
             THE BANK
           </span>
-          <div className="bg-black/90 border-2 border-[#ffcc00] px-4 sm:px-8 py-1 sm:py-2 rounded-2xl shadow-inner flex items-center justify-center">
-            <span className="font-mono text-3xl sm:text-5xl md:text-6xl font-black text-[#ffcc00] tracking-widest drop-shadow-[0_0_15px_rgba(255,204,0,0.4)]">
+          <div className="feud-bank px-5 sm:px-10 py-1 sm:py-2 flex items-center justify-center">
+            <span className="feud-digits text-5xl sm:text-6xl md:text-7xl">
               {roundBank}
             </span>
           </div>
@@ -375,7 +374,7 @@ export const FamilyFeudBoard: React.FC<FamilyFeudBoardProps> = ({
             <span className="text-sm sm:text-base">{team2.avatar || '⚡'}</span>
             <span className="font-bold text-white text-xs sm:text-sm truncate">{team2.name}</span>
           </div>
-          <div className="font-mono text-2xl sm:text-4xl font-black text-[#ffcc00] tracking-wider drop-shadow">
+          <div className="feud-digits text-3xl sm:text-5xl">
             {team2.score}
           </div>
           {role === 'host' && (
@@ -393,7 +392,7 @@ export const FamilyFeudBoard: React.FC<FamilyFeudBoardProps> = ({
       </div>
 
       {/* 2. ROUND QUESTION & STRIKES BAR */}
-      <div className="bg-[#02052c] border-2 border-slate-700 rounded-xl p-3 sm:p-4 flex items-center justify-between flex-wrap gap-3 shadow-lg">
+      <div className="feud-question p-3 sm:p-4 flex items-center justify-between flex-wrap gap-3">
         <div className="flex-1 min-w-[280px]">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 bg-[#ffcc00] text-[#02052c] rounded">
@@ -424,7 +423,7 @@ export const FamilyFeudBoard: React.FC<FamilyFeudBoardProps> = ({
       </div>
 
       {/* 3. THE ICONIC ANSWER BOARD (Dual Columns 1-8) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 flex-1">
+      <div className="feud-board grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 flex-1">
         {currentRound.answers.map((ans, idx) => {
           const isRevealed = revealedAnswerIds.has(ans.id);
 
@@ -432,24 +431,20 @@ export const FamilyFeudBoard: React.FC<FamilyFeudBoardProps> = ({
             <div
               key={ans.id || idx}
               onClick={() => role === 'host' && handleToggleAnswer(ans)}
-              className={`relative min-h-[58px] sm:min-h-[66px] rounded-xl border-2 flex items-center justify-between px-3 sm:px-4 cursor-pointer select-none transition-all duration-300 shadow-md ${
-                isRevealed
-                  ? 'bg-gradient-to-r from-[#031569] via-[#0528b8] to-[#031569] border-[#ffcc00] shadow-blue-900/50 scale-[1.01]'
-                  : 'bg-gradient-to-r from-slate-900 via-[#0a1242] to-slate-900 border-slate-700 hover:border-amber-400/60'
-              }`}
+              className={`feud-slot ${isRevealed ? 'feud-slot-open' : ''} relative min-h-[58px] sm:min-h-[70px] flex items-center justify-between px-3 sm:px-4 ${role === 'host' ? 'cursor-pointer' : ''} select-none`}
             >
               {isRevealed ? (
                 /* REVEALED ANSWER SLAT */
                 <>
                   <div className="flex items-center gap-2 truncate pr-2">
-                    <span className="w-6 h-6 rounded-full bg-[#ffcc00] text-[#02052c] font-black text-xs flex items-center justify-center shrink-0">
+                    <span className="feud-rank feud-rank-open shrink-0">
                       {idx + 1}
                     </span>
-                    <span className="font-jeopardy-display text-sm sm:text-base md:text-lg text-white font-bold tracking-wide uppercase truncate">
+                    <span className="feud-answer truncate">
                       {ans.text}
                     </span>
                   </div>
-                  <div className="bg-black/85 border border-[#ffcc00] rounded-lg px-2.5 sm:px-3 py-1 font-mono text-base sm:text-xl font-black text-[#ffcc00] shrink-0">
+                  <div className="feud-points shrink-0">
                     {ans.points}
                   </div>
                 </>
@@ -457,18 +452,16 @@ export const FamilyFeudBoard: React.FC<FamilyFeudBoardProps> = ({
                 /* UNREVEALED SLAT (Mechanical number slat) */
                 <div className="w-full flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="w-8 h-8 rounded-full border-2 border-amber-500/60 bg-black/60 text-amber-300 font-mono font-black text-sm flex items-center justify-center">
+                    <span className="feud-rank">
                       {idx + 1}
                     </span>
                     {role === 'host' && (
-                      <span className="text-[11px] text-slate-400 italic font-mono truncate max-w-[200px]">
+                      <span className="feud-host-peek truncate max-w-[220px]">
                         {ans.text} ({ans.points})
                       </span>
                     )}
                   </div>
-                  <div className="w-10 h-7 rounded border border-slate-700 bg-black/40 flex items-center justify-center">
-                    <span className="text-xs text-slate-600 font-mono">••</span>
-                  </div>
+
                 </div>
               )}
             </div>
@@ -478,7 +471,7 @@ export const FamilyFeudBoard: React.FC<FamilyFeudBoardProps> = ({
 
       {/* 4. HOST CONTROLS BAR (Visible to Host or when Host Drawer is active) */}
       {role === 'host' && (
-        <div className="bg-[#02052c] border border-amber-500/50 rounded-xl p-2.5 sm:p-3 flex items-center justify-between flex-wrap gap-2 text-xs">
+        <div className="feud-controls p-2.5 sm:p-3 flex items-center justify-between flex-wrap gap-2 text-xs">
           {/* Strikes & Steal Actions */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <button

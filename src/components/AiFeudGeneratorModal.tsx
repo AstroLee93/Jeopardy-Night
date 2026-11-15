@@ -71,7 +71,7 @@ export const AiFeudGeneratorModal: React.FC<AiFeudGeneratorModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-[#030833] border-2 border-amber-500/80 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+      <div className="host-panel w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
         {/* Header */}
         <div className="bg-gradient-to-r from-amber-600 via-[#ffcc00] to-amber-600 p-3 sm:p-4 flex items-center justify-between">
           <div className="flex items-center gap-2">

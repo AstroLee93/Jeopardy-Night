@@ -472,36 +472,23 @@ export const ClueModal: React.FC<ClueModalProps> = ({
       }}
     >
       <div
-        className={`w-full ${
-          role === 'tv'
-            ? 'max-w-5xl bg-gradient-to-b from-[#0a14bd] via-[#040875] to-[#01042b] border-4 border-cyan-400 p-5 sm:p-8 shadow-[0_0_60px_rgba(34,211,238,0.5)]'
-            : 'max-w-4xl bg-gradient-to-b from-[#0b15c9] via-[#04097a] to-[#020536] border-2 sm:border-4 border-[#ffcc00] p-4 sm:p-7 shadow-2xl'
-        } rounded-2xl flex flex-col justify-between max-h-[94vh] overflow-y-auto`}
+        className={`clue-screen ${role === 'tv' ? 'clue-screen-tv' : ''} w-full flex flex-col justify-between overflow-y-auto`}
       >
         {/* ===================================================================
             TOP BAR: Role Indicator, Category, Authoritative Countdown Timer
             =================================================================== */}
-        <div className="border-b-2 border-[#ffcc00]/40 pb-3 mb-2">
+        <div className="clue-topbar pb-3 mb-2">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <span
-                className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded flex items-center gap-1 border ${
-                  role === 'tv'
-                    ? 'bg-cyan-950 text-cyan-300 border-cyan-500'
-                    : 'bg-amber-950 text-amber-300 border-amber-500'
-                }`}
-              >
-                {role === 'tv' ? <Tv className="w-3 h-3" /> : <Crown className="w-3 h-3" />}
-                {role === 'tv' ? 'TV Big Screen View' : 'Host Controller'}
-              </span>
 
-              <div className="font-jeopardy-display text-[#ffcc00] text-base sm:text-xl uppercase tracking-wider">
+
+              <div className="clue-category">
                 {categoryTitle}
               </div>
             </div>
 
             {/* LIVE COUNTDOWN TIMER & CONTROLS */}
-            <div className="flex items-center gap-1.5 sm:gap-2 bg-[#02052c] border border-amber-500/50 rounded-xl px-2.5 sm:px-3 py-1.5 shadow-md flex-wrap">
+            <div className="clue-timer flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 flex-wrap">
               <Clock
                 className={`w-4 h-4 ${
                   timeLeft <= 3 && timeLeft > 0 ? 'text-red-400 animate-pulse' : 'text-[#ffcc00]'
@@ -517,7 +504,7 @@ export const ClueModal: React.FC<ClueModalProps> = ({
                     : 'text-white'
                 }`}
               >
-                {timeLeft === 0 ? "TIME'S UP!" : `${timeLeft}s`}
+                {timeLeft === 0 ? "Time's up" : `${timeLeft}s`}
               </span>
 
               {/* Host-only timer controls */}
@@ -583,8 +570,8 @@ export const ClueModal: React.FC<ClueModalProps> = ({
               )}
             </div>
 
-            <div className="font-jeopardy-display text-white text-xl sm:text-3xl tracking-wider">
-              ${clue.value}
+            <div className="clue-value">
+              ${clue.value.toLocaleString()}
             </div>
           </div>
 
@@ -603,12 +590,10 @@ export const ClueModal: React.FC<ClueModalProps> = ({
             BUZZER LOCKOUT BANNER
             =================================================================== */}
         {buzzedTeam ? (
-          <div className="bg-gradient-to-r from-red-600 via-amber-500 to-red-600 p-2.5 rounded-xl shadow-[0_0_25px_rgba(239,68,68,0.8)] border-2 border-white flex items-center justify-between px-4 animate-bounce mb-2">
+          <div className="buzz-banner flex items-center justify-between flex-wrap gap-2 px-4 py-2.5 mb-2" style={{ '--team': buzzedTeam.color?.border } as React.CSSProperties}>
             <div className="flex items-center gap-2">
-              <span className="text-xl">🚨</span>
-              <span className="font-jeopardy-display text-lg sm:text-xl text-black font-extrabold uppercase tracking-wider">
-                {buzzedTeam.avatar || '⚡'} {buzzedTeam.name} BUZZED IN!
-              </span>
+              <span className="podium-name buzz-name">{buzzedTeam.name}</span>
+              <span className="buzz-label">rang in first</span>
             </div>
             {role === 'host' && (
               <div className="flex items-center gap-2">
@@ -827,11 +812,7 @@ export const ClueModal: React.FC<ClueModalProps> = ({
             </div>
           </div>
         ) : (
-          /* TV Display Footer Info */
-          <div className="bg-[#02052c]/80 border border-cyan-500/40 rounded-xl p-2.5 text-center text-xs text-cyan-300 flex items-center justify-center gap-2">
-            <Tv className="w-4 h-4 text-cyan-400" />
-            <span>TV Display Screen · Controlled Remotely by Host Laptop</span>
-          </div>
+          null
         )}
       </div>
     </div>

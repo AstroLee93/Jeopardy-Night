@@ -99,7 +99,7 @@ window.ANIME_JEOPARDY_DATA = ${JSON.stringify(data, null, 2)};
 
   return (
     <div className="fixed inset-0 z-50 bg-[#010314]/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div className="w-full max-w-5xl bg-gradient-to-b from-[#07116b] to-[#02052c] border-2 sm:border-4 border-[#ffcc00] rounded-2xl p-4 sm:p-7 shadow-2xl flex flex-col max-h-[92vh]">
+      <div className="w-full max-w-5xl host-panel p-4 sm:p-7 shadow-2xl flex flex-col max-h-[92vh]">
         {/* Top Header */}
         <div className="flex items-center justify-between border-b border-slate-700/80 pb-3 mb-4">
           <div className="flex items-center gap-3">

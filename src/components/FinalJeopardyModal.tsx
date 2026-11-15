@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { FinalJeopardyItem } from '../data/animeJeopardyData';
 import { Team } from './ScoreBoard';
+import { Podium } from './Podium';
 import { soundFx } from '../utils/audioSynth';
 import { gameSync, ScreenRole } from '../utils/gameSync';
-import { Trophy, Clock, Check, X, Tv, Crown, Camera } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 
 interface FinalJeopardyModalProps {
   finalData: FinalJeopardyItem;
@@ -185,229 +186,139 @@ export const FinalJeopardyModal: React.FC<FinalJeopardyModalProps> = ({
         margin: 0,
       }}
     >
-      <div className={`w-full max-w-4xl bg-gradient-to-b from-[#0b15c9] via-[#04097a] to-[#020536] border-4 rounded-2xl p-5 sm:p-8 shadow-2xl text-center ${
-        role === 'tv' ? 'border-cyan-400' : 'border-[#ffcc00]'
-      }`}>
-        {/* Header with role badge */}
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <div className="inline-flex items-center gap-2 text-[#ffcc00] font-bold text-xs uppercase tracking-widest bg-amber-500/10 border border-[#ffcc00]/40 px-3 py-1 rounded-full">
-            <Trophy className="w-4 h-4" /> The Final Showdown
-          </div>
-          <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded border ${
-            role === 'tv' ? 'bg-cyan-950 text-cyan-300 border-cyan-500' : 'bg-amber-950 text-amber-300 border-amber-500'
-          }`}>
-            {role === 'tv' ? '📺 TV Screen' : '👑 Host Controller'}
-          </span>
-        </div>
+      <div className="fj-card">
+        <h1 className="fj-title">Final Jeopardy!</h1>
+        <p className="dd-category">{finalData.category}</p>
 
-        <h1 className="font-jeopardy-display text-3xl sm:text-4xl md:text-5xl text-[#ffcc00] tracking-wider uppercase mb-1">
-          FINAL JEOPARDY
-        </h1>
-        <p className="text-slate-300 text-sm sm:text-base mb-6 font-semibold">
-          Category: <span className="text-white uppercase font-bold">{finalData.category}</span>
-        </p>
-
-        {/* STAGE 1: WAGER */}
         {stage === 'WAGER' && (
-          <div className="space-y-6">
-            <p className="text-slate-300 text-sm max-w-xl mx-auto">
-              Before seeing the clue, each team must privately enter their wager based on their confidence in this category. (Maximum wager is your current score, minimum $0).
+          <>
+            <p className="fj-lede">
+              {role === 'host'
+                ? 'Each team writes down a wager before seeing the clue. They can bet anything from $0 up to their score.'
+                : 'Teams, write down your wagers now. You can bet anything from $0 up to your score.'}
             </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-w-2xl mx-auto">
+            <div className="podium-row fj-podiums">
               {teams.map((team) => {
                 const maxWager = Math.max(0, team.score);
-                const currentVal = wagers[team.id] ?? 0;
-
                 return (
-                  <div
-                    key={team.id}
-                    className="bg-[#02052c] border border-slate-700 rounded-xl p-3 text-left"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold text-slate-200 truncate">{team.name}</span>
-                      <span className="text-xs text-amber-300">${team.score}</span>
-                    </div>
+                  <div key={team.id} className="fj-slot">
+                    <Podium name={team.name} color={team.color.border} score={team.score} />
                     {role === 'host' ? (
-                      <div className="flex items-center gap-1 bg-black/40 border border-slate-600 rounded px-2 py-1">
-                        <span className="text-xs text-[#ffcc00] font-bold">$</span>
+                      <label className="fj-wager">
+                        <span>$</span>
                         <input
                           type="number"
+                          inputMode="numeric"
                           min={0}
                           max={maxWager}
-                          value={currentVal}
+                          aria-label={`${team.name} wager`}
+                          value={wagers[team.id] ?? 0}
                           onChange={(e) => {
                             const val = parseInt(e.target.value, 10) || 0;
-                            setWagers((prev) => ({
-                              ...prev,
-                              [team.id]: Math.max(0, Math.min(val, maxWager))
-                            }));
+                            setWagers((prev) => ({ ...prev, [team.id]: Math.max(0, Math.min(val, maxWager)) }));
                           }}
-                          className="w-full bg-transparent text-sm text-white font-mono font-bold outline-none"
                         />
-                      </div>
+                      </label>
                     ) : (
-                      <div className="text-xs font-mono font-bold text-amber-300 py-1">
-                        [Wager Recorded Privately]
-                      </div>
+                      <span className="fj-secret">Wager hidden</span>
                     )}
-                    <span className="text-[10px] text-slate-400 block mt-1">
-                      Max: ${maxWager.toLocaleString()}
-                    </span>
                   </div>
                 );
               })}
             </div>
-
             {role === 'host' ? (
-              <button
-                type="button"
-                onClick={handleStartClue}
-                className="py-3 px-8 bg-[#ffcc00] hover:bg-[#ffe066] text-[#030852] font-jeopardy-display text-xl uppercase tracking-wider rounded-xl shadow-lg transition-transform hover:-translate-y-0.5 cursor-pointer"
-              >
-                Lock Wagers & Reveal Clue on TV
+              <button type="button" onClick={handleStartClue} className="marquee-button">
+                Lock wagers and show the clue
               </button>
             ) : (
-              <div className="text-xs text-cyan-300 italic">
-                Waiting for host to lock wagers and reveal clue...
-              </div>
+              <p className="dd-wait">The clue appears when the host locks the wagers.</p>
             )}
-          </div>
+          </>
         )}
 
-        {/* STAGE 2: CLUE */}
         {stage === 'CLUE' && (
-          <div className="space-y-6">
+          <>
             {finalData.image && (
-              <div className="relative max-w-md mx-auto max-h-56 rounded-xl overflow-hidden border-2 border-[#ffcc00] shadow-md bg-black">
-                <img
-                  src={finalData.image}
-                  alt="Final Clue Image"
-                  onError={(e) => {
-                    if (finalData.fallbackImage) {
-                      e.currentTarget.src = finalData.fallbackImage;
-                    }
-                  }}
-                  className="w-full h-full object-cover max-h-56"
-                />
-              </div>
+              <img
+                src={finalData.image}
+                alt={finalData.imageAlt || 'Final clue picture'}
+                onError={(e) => {
+                  if (finalData.fallbackImage) e.currentTarget.src = finalData.fallbackImage;
+                }}
+                className="fj-image"
+              />
             )}
-
-            <div className="font-jeopardy-serif text-white text-xl sm:text-2xl md:text-3xl leading-relaxed max-w-2xl mx-auto px-4">
-              {finalData.clue}
+            <p className="clue-text-show font-jeopardy-serif fj-clue">{finalData.clue}</p>
+            <div className={`fj-clock ${timeLeft <= 5 ? 'fj-clock-low' : ''}`} role="timer" aria-live="off">
+              <div className="fj-clock-bar" style={{ width: `${(timeLeft / 30) * 100}%` }} />
+              <span>{timeLeft === 0 ? 'Pens down' : `${timeLeft}`}</span>
             </div>
-
-            {/* Synchronized 30s Countdown timer */}
-            <div className="flex items-center justify-center gap-3">
-              <Clock className="w-8 h-8 text-[#ffcc00]" />
-              <span className={`font-jeopardy-display text-5xl sm:text-6xl tabular-nums tracking-wider drop-shadow-md ${
-                timeLeft <= 5 ? 'text-red-400 animate-pulse' : 'text-[#ffcc00]'
-              }`}>
-                {timeLeft === 0 ? "TIME'S UP!" : `${timeLeft}s`}
-              </span>
-            </div>
-
             {role === 'host' && (
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={handleGoToJudge}
-                  className="py-3 px-8 bg-[#ffcc00] hover:bg-[#ffe066] text-[#030852] font-jeopardy-display text-xl uppercase tracking-wider rounded-xl shadow-lg cursor-pointer"
-                >
-                  Proceed to Answer & Grading
-                </button>
-              </div>
+              <button type="button" onClick={handleGoToJudge} className="marquee-button">
+                Show the answer
+              </button>
             )}
-          </div>
+          </>
         )}
 
-        {/* STAGE 3: JUDGE */}
         {stage === 'JUDGE' && (
-          <div className="space-y-6">
-            <div className="bg-black/60 border-2 border-emerald-400 rounded-xl p-4 max-w-xl mx-auto">
-              <span className="text-xs font-bold uppercase tracking-widest text-emerald-400 block mb-1">
-                Correct Response
-              </span>
-              <div className="font-jeopardy-serif text-white text-2xl sm:text-3xl font-bold">
-                {finalData.answer}
-              </div>
+          <>
+            <div className="fj-answer">
+              <p className="fj-answer-label">The correct response</p>
+              <p className="font-jeopardy-serif fj-answer-text">{finalData.answer}</p>
             </div>
 
             {role === 'host' ? (
               <>
-                <p className="text-xs font-bold text-[#ffcc00] uppercase tracking-wider">
-                  Host: Mark Each Team's Written Answer
-                </p>
-
-                <div className="space-y-2 max-w-2xl mx-auto">
+                <p className="fj-lede">Mark each team&rsquo;s written answer.</p>
+                <div className="fj-judge">
                   {teams.map((team) => {
                     const wager = wagers[team.id] || 0;
                     const status = judgments[team.id];
-
                     return (
-                      <div
-                        key={team.id}
-                        className="flex items-center justify-between bg-[#02052c] border border-slate-700 rounded-xl px-4 py-2.5"
-                      >
-                        <div className="text-left">
-                          <span className="font-semibold text-white block text-sm sm:text-base">
-                            {team.name}
-                          </span>
-                          <span className="text-xs text-slate-400">
-                            Score: ${team.score} · Wager: ${wager}
+                      <div key={team.id} className="fj-judge-row" style={{ '--team': team.color.border } as React.CSSProperties}>
+                        <div className="fj-judge-who">
+                          <span className="podium-name">{team.name}</span>
+                          <span className="fj-judge-meta">
+                            ${team.score.toLocaleString()} now, wagered ${wager.toLocaleString()}
                           </span>
                         </div>
-
-                        <div className="flex items-center gap-2">
+                        <div className="fj-judge-btns">
                           <button
                             type="button"
+                            aria-pressed={status === true}
+                            className={`fj-right ${status === true ? 'fj-on' : ''}`}
                             onClick={() => {
                               setJudgments((prev) => ({ ...prev, [team.id]: true }));
                               soundFx.playCorrect();
                             }}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                              status === true
-                                ? 'bg-emerald-600 text-white ring-2 ring-white'
-                                : 'bg-slate-800 text-slate-300 hover:bg-emerald-900/60'
-                            }`}
                           >
-                            <Check className="w-3.5 h-3.5" /> Correct (+${wager})
+                            <Check className="w-4 h-4" /> Right
                           </button>
-
                           <button
                             type="button"
+                            aria-pressed={status === false}
+                            className={`fj-wrong ${status === false ? 'fj-on' : ''}`}
                             onClick={() => {
                               setJudgments((prev) => ({ ...prev, [team.id]: false }));
                               soundFx.playWrong();
                             }}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                              status === false
-                                ? 'bg-red-700 text-white ring-2 ring-white'
-                                : 'bg-slate-800 text-slate-300 hover:bg-red-900/60'
-                            }`}
                           >
-                            <X className="w-3.5 h-3.5" /> Wrong (-${wager})
+                            <X className="w-4 h-4" /> Wrong
                           </button>
                         </div>
                       </div>
                     );
                   })}
                 </div>
-
-                <button
-                  type="button"
-                  onClick={handleComplete}
-                  className="py-3.5 px-10 bg-[#ffcc00] hover:bg-[#ffe066] text-[#030852] font-jeopardy-display text-xl uppercase tracking-wider rounded-xl shadow-xl transition-transform hover:-translate-y-0.5 cursor-pointer"
-                >
-                  👑 Conclude Game & Show Champion
+                <button type="button" onClick={handleComplete} className="marquee-button">
+                  Crown the champion
                 </button>
               </>
             ) : (
-              <div className="text-sm text-cyan-300 font-semibold py-4">
-                The host is grading final answers... Champion will be revealed shortly!
-              </div>
+              <p className="dd-wait">The host is checking everyone&rsquo;s answers.</p>
             )}
-          </div>
+          </>
         )}
       </div>
     </div>

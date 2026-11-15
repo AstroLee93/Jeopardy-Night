@@ -570,3 +570,672 @@
     animation: none;
   }
 }
+
+/* ===================== Finale (winner) ===================== */
+.finale-spotlight {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(ellipse 28% 70% at 50% 75%, rgba(255, 243, 209, 0.22), transparent 70%);
+  animation: spotlightIn 1.4s ease-out both;
+}
+@keyframes spotlightIn {
+  0% { opacity: 0; transform: scaleX(0.3); }
+  100% { opacity: 1; transform: scaleX(1); }
+}
+.finale-name {
+  font-family: "Caveat Brush", "Segoe Print", cursive;
+  font-size: clamp(3rem, 9vw, 7rem);
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 0 24px rgba(255, 255, 255, 0.5), 4px 4px 0 #000;
+  animation: splashTitle 0.9s 0.3s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.finale-score {
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  color: var(--marquee-gold);
+  text-shadow: 3px 3px 0 #000;
+  margin: 0.25rem 0 2.5rem;
+}
+.finale-row {
+  margin-bottom: 2.75rem;
+}
+.finale-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+.finale-slot-winner {
+  order: -1;
+}
+@media (min-width: 641px) {
+  .finale-slot-winner { order: 0; }
+  .finale-row .finale-slot:nth-child(2) { order: -1; }
+}
+.finale-place {
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: 1.5rem;
+  color: #8f96d6;
+}
+.finale-slot-winner .finale-place {
+  color: var(--marquee-gold);
+  font-size: 2rem;
+}
+.finale-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.finale-actions .stage-secondary {
+  margin-top: 1.5rem;
+}
+.finale-hint {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: #8f96d6;
+}
+
+/* ===================== TV lobby ===================== */
+.lobby-board {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  width: min(560px, 100%);
+  padding: 6px;
+  background: #000;
+  margin-bottom: 2.5rem;
+}
+.lobby-tile {
+  aspect-ratio: 16 / 10;
+  background: radial-gradient(ellipse at 50% 35%, #1b23ff, #060ce9 45%, #0408a8);
+  animation: tileIdle 3.6s ease-in-out infinite;
+}
+@keyframes tileIdle {
+  0%, 100% { filter: brightness(0.55); }
+  50% { filter: brightness(1.05); }
+}
+.lobby-host p {
+  color: #c7ccf5;
+  margin-bottom: 0.5rem;
+}
+.lobby-link {
+  display: flex;
+  gap: 0.5rem;
+  width: min(560px, 92vw);
+  background: #050a3f;
+  border: 2px solid #000;
+  border-radius: 6px;
+  padding: 0.35rem;
+}
+.lobby-link input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  color: var(--bulb-cream);
+  padding: 0 0.5rem;
+  font-size: 0.95rem;
+  outline: none;
+  user-select: all;
+}
+.lobby-link button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--marquee-gold);
+  color: var(--night-stage);
+  font-weight: 700;
+  padding: 0.4rem 0.9rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* ===================== Daily Double + Final cards ===================== */
+.dd-card,
+.fj-card {
+  position: relative;
+  width: min(880px, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  overflow-x: hidden;
+  text-align: center;
+  padding: clamp(1.5rem, 4vw, 3rem) clamp(1rem, 4vw, 3rem);
+  background: radial-gradient(ellipse at 50% 30%, #1b23ff 0%, #060ce9 45%, #02065a 100%);
+  border: 4px solid #000;
+  box-shadow: 0 0 0 4px #1a1f6b, 0 30px 80px rgba(0, 0, 0, 0.7);
+  isolation: isolate;
+}
+.dd-rays {
+  position: absolute;
+  inset: -60%;
+  z-index: -1;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 204, 0, 0.09) 0deg 7deg, transparent 7deg 18deg);
+  animation: raysSpin 16s linear infinite;
+}
+.dd-title,
+.fj-title {
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: clamp(3.2rem, 11vw, 8rem);
+  line-height: 0.9;
+  color: #fff;
+  text-shadow: 6px 6px 0 #000, 0 0 40px rgba(255, 204, 0, 0.6);
+  animation: ddSlam 0.7s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+.fj-title {
+  font-size: clamp(2.6rem, 8vw, 5.5rem);
+  animation: none;
+}
+@keyframes ddSlam {
+  0% { transform: scale(3) rotate(-8deg); opacity: 0; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+.dd-category {
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: clamp(1.3rem, 3vw, 2rem);
+  letter-spacing: 0.04em;
+  color: var(--marquee-gold);
+  text-shadow: 2px 2px 0 #000;
+  margin: 0.5rem 0 1.75rem;
+}
+.dd-wait,
+.fj-lede {
+  font-family: "Libre Baskerville", Georgia, serif;
+  color: #dfe2ff;
+  font-size: clamp(1rem, 2.2vw, 1.35rem);
+  line-height: 1.7;
+  max-width: 36rem;
+  margin: 0 auto 1.75rem;
+}
+.dd-host {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.dd-label {
+  color: #dfe2ff;
+  font-size: 0.95rem;
+  margin-bottom: 0.6rem;
+}
+.dd-teams {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1.75rem;
+}
+.dd-team {
+  --team: #f5b83d;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 120px;
+  padding: 0.45rem 0.8rem 0.35rem;
+  background: #050a3f;
+  border: 2px solid #000;
+  border-bottom: 4px solid var(--team);
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.dd-team .podium-name {
+  font-size: 1.2rem;
+}
+.dd-team-on {
+  opacity: 1;
+  box-shadow: 0 0 0 2px var(--marquee-gold), 0 0 18px var(--team);
+}
+.dd-team-score {
+  font-family: "Bebas Neue", Impact, sans-serif;
+  color: var(--marquee-gold);
+  font-size: 1.1rem;
+}
+.dd-wager {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: clamp(3rem, 8vw, 4.5rem);
+  color: var(--marquee-gold);
+  text-shadow: 3px 3px 0 #000;
+}
+.dd-wager input {
+  width: 5.5ch;
+  background: transparent;
+  color: #fff;
+  text-align: center;
+  border-bottom: 3px solid var(--marquee-gold);
+  outline: none;
+  font: inherit;
+  user-select: text;
+}
+.dd-range {
+  width: min(420px, 90%);
+  margin: 1rem 0 0.75rem;
+  accent-color: var(--marquee-gold);
+}
+.dd-presets {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+.dd-presets button,
+.board-controls button {
+  padding: 0.4rem 0.9rem;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #dfe2ff;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.dd-presets button:hover,
+.board-controls button:hover {
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+}
+.dd-confirm {
+  font-size: clamp(1.4rem, 3vw, 2rem);
+}
+
+.fj-podiums {
+  margin-bottom: 2.25rem;
+  row-gap: 2rem;
+}
+.fj-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.1rem;
+}
+.fj-wager {
+  display: flex;
+  align-items: baseline;
+  gap: 0.15rem;
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: 1.7rem;
+  color: var(--marquee-gold);
+}
+.fj-wager input {
+  width: 5ch;
+  background: #050a3f;
+  border: 2px solid #000;
+  color: #fff;
+  text-align: center;
+  font: inherit;
+  outline: none;
+  user-select: text;
+}
+.fj-wager input:focus {
+  box-shadow: 0 0 0 2px var(--marquee-gold);
+}
+.fj-secret {
+  font-family: "Libre Baskerville", Georgia, serif;
+  font-style: italic;
+  color: #8f96d6;
+  font-size: 0.9rem;
+}
+.fj-image {
+  max-height: 14rem;
+  margin: 0 auto 1.25rem;
+  border: 3px solid #000;
+}
+.fj-clue {
+  color: #fff;
+  font-size: clamp(1.4rem, 3.4vw, 2.6rem);
+  line-height: 1.45;
+  max-width: 44rem;
+  margin: 0 auto 2rem;
+}
+.fj-clock {
+  position: relative;
+  width: min(460px, 90%);
+  height: 2.6rem;
+  margin: 0 auto 2rem;
+  background: #050a3f;
+  border: 3px solid #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.fj-clock-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--marquee-gold);
+  opacity: 0.35;
+  transition: width 1s linear;
+}
+.fj-clock span {
+  position: relative;
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: 1.8rem;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 2px 2px 0 #000;
+}
+.fj-clock-low .fj-clock-bar {
+  background: var(--wrong-red);
+  opacity: 0.7;
+}
+.fj-answer {
+  background: #050a3f;
+  border: 3px solid #000;
+  padding: 1rem 1.5rem;
+  max-width: 40rem;
+  margin: 0 auto 1.75rem;
+}
+.fj-answer-label {
+  color: var(--marquee-gold);
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+.fj-answer-text {
+  color: #fff;
+  font-size: clamp(1.4rem, 3vw, 2.2rem);
+  font-weight: 700;
+}
+.fj-judge {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(640px, 100%);
+  margin: 0 auto 2rem;
+}
+.fj-judge-row {
+  --team: #f5b83d;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 0.9rem;
+  background: #050a3f;
+  border: 2px solid #000;
+  border-left: 6px solid var(--team);
+  text-align: left;
+}
+.fj-judge-who {
+  display: flex;
+  flex-direction: column;
+}
+.fj-judge-meta {
+  color: #8f96d6;
+  font-size: 0.85rem;
+}
+.fj-judge-btns {
+  display: flex;
+  gap: 0.4rem;
+}
+.fj-judge-btns button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 4px;
+  border: 2px solid #000;
+  background: rgba(255, 255, 255, 0.08);
+  color: #dfe2ff;
+  font-weight: 700;
+  cursor: pointer;
+}
+.fj-right.fj-on { background: #2fbf71; color: #04210f; }
+.fj-wrong.fj-on { background: var(--wrong-red); color: #fff; }
+
+.dd-team:focus-visible,
+.fj-judge-btns button:focus-visible,
+.dd-presets button:focus-visible,
+.board-controls button:focus-visible,
+.lobby-link button:focus-visible {
+  outline: 3px solid var(--marquee-gold);
+  outline-offset: 2px;
+}
+
+/* ===================== Board controls (host) ===================== */
+.board-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.board-controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.board-controls .board-next {
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: 1.35rem;
+  letter-spacing: 0.04em;
+  padding: 0.35rem 1.2rem 0.2rem;
+  background: var(--marquee-gold);
+  color: var(--night-stage);
+  border: 2px solid #000;
+}
+.board-controls .board-next:hover {
+  background: #ffc95e;
+  color: var(--night-stage);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .finale-spotlight, .finale-name, .dd-title, .dd-rays, .lobby-tile {
+    animation: none !important;
+  }
+}
+
+/* ===================== Clue screen ===================== */
+.clue-screen {
+  max-width: 64rem;
+  max-height: 94vh;
+  padding: clamp(1rem, 3vw, 2rem);
+  background: radial-gradient(ellipse at 50% 40%, #1b23ff 0%, #060ce9 45%, #0408a8 100%);
+  border: 4px solid #000;
+  box-shadow: 0 0 0 4px #1a1f6b, 0 30px 80px rgba(0, 0, 0, 0.7);
+}
+.clue-screen-tv {
+  max-width: none;
+  width: 100%;
+  min-height: 92vh;
+}
+.clue-topbar {
+  border-bottom: 3px solid #000;
+}
+.clue-category {
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: clamp(1.2rem, 2.4vw, 1.8rem);
+  letter-spacing: 0.04em;
+  color: #fff;
+  text-shadow: 2px 2px 0 #000;
+}
+.clue-value {
+  font-family: "Anton", Impact, sans-serif;
+  font-size: clamp(1.5rem, 3vw, 2.4rem);
+  color: var(--marquee-gold);
+  text-shadow: 3px 3px 0 #000;
+}
+.clue-timer {
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px solid #000;
+  border-radius: 4px;
+}
+.buzz-banner {
+  --team: #f5b83d;
+  background: #050a3f;
+  border: 3px solid #000;
+  border-left: 10px solid var(--team);
+  box-shadow: 0 0 28px var(--team);
+  animation: buzzIn 0.35s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+.buzz-banner > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+.buzz-name {
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+}
+.buzz-label {
+  font-family: "Libre Baskerville", Georgia, serif;
+  font-style: italic;
+  color: #dfe2ff;
+}
+@keyframes buzzIn {
+  0% { transform: scale(0.9); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ===================== Host panels (backstage: quieter than the set) ===================== */
+.host-panel {
+  background: linear-gradient(180deg, #141c66 0%, #0a1048 100%);
+  border: 3px solid #000;
+  border-top: 6px solid var(--marquee-gold);
+  border-radius: 6px;
+  box-shadow: 0 0 0 3px #1a1f6b, 0 30px 80px rgba(0, 0, 0, 0.7);
+}
+.host-panel h2.font-jeopardy-display,
+.host-panel h1.font-jeopardy-display {
+  color: var(--bulb-cream);
+  text-shadow: 3px 3px 0 #000;
+}
+/* Sentence-case the small tracked-out labels; leave display headings alone. */
+.host-panel .uppercase:not(.font-jeopardy-display):not(h1):not(h2),
+.dd-card .uppercase:not(.font-jeopardy-display),
+.clue-screen .uppercase:not(.font-jeopardy-display):not(.clue-category) {
+  text-transform: none;
+  letter-spacing: 0.01em;
+}
+.host-panel input,
+.host-panel textarea,
+.host-panel select {
+  user-select: text;
+  -webkit-user-select: text;
+}
+.host-panel input:focus-visible,
+.host-panel textarea:focus-visible,
+.host-panel select:focus-visible,
+.host-panel button:focus-visible {
+  outline: 2px solid var(--marquee-gold);
+  outline-offset: 2px;
+}
+
+/* ===================== Family Feud: survey board ===================== */
+.feud-stage {
+  --survey-blue: #1747c9;
+  --survey-deep: #0b2276;
+  --chrome: #c9d1dc;
+  --chrome-dark: #6b7686;
+  --signal-orange: #ff8a1f;
+}
+.feud-scorebar,
+.feud-board,
+.feud-question {
+  background: linear-gradient(180deg, #0d1d63, #071242);
+  border: 6px solid var(--chrome);
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 3px var(--chrome-dark), 0 0 0 3px #000, 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+.feud-board {
+  padding: 12px;
+}
+.feud-question h2 {
+  font-family: "Libre Baskerville", Georgia, serif;
+  line-height: 1.4;
+  text-shadow: 2px 2px 0 #000;
+}
+.feud-digits {
+  font-family: "Anton", Impact, sans-serif;
+  color: var(--signal-orange);
+  text-shadow: 0 0 14px rgba(255, 138, 31, 0.55), 2px 2px 0 #000;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+.feud-bank {
+  background: #000;
+  border: 4px solid var(--chrome);
+  border-radius: 8px;
+  box-shadow: inset 0 0 18px rgba(255, 138, 31, 0.25);
+}
+.feud-slot {
+  background: linear-gradient(180deg, #1e4fd6, var(--survey-deep));
+  border: 3px solid #000;
+  border-radius: 6px;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.18);
+  perspective: 600px;
+}
+.feud-slot:not(.feud-slot-open):hover {
+  filter: brightness(1.15);
+}
+.feud-slot-open {
+  background: linear-gradient(180deg, #2a5ff0, var(--survey-blue));
+  animation: slatFlip 0.45s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+@keyframes slatFlip {
+  0% { transform: rotateX(-90deg); filter: brightness(2); }
+  100% { transform: rotateX(0); filter: none; }
+}
+.feud-rank {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Anton", Impact, sans-serif;
+  font-size: 1.35rem;
+  color: var(--survey-deep);
+  background: radial-gradient(circle at 35% 30%, #fff, var(--chrome) 70%);
+  border: 2px solid #000;
+}
+.feud-rank-open {
+  width: 1.9rem;
+  height: 1.9rem;
+  font-size: 1rem;
+}
+.feud-answer {
+  font-family: "Bebas Neue", Impact, sans-serif;
+  font-size: clamp(1.3rem, 2.4vw, 2rem);
+  letter-spacing: 0.03em;
+  color: #fff;
+  text-shadow: 2px 2px 0 #000;
+}
+.feud-points {
+  font-family: "Anton", Impact, sans-serif;
+  font-size: clamp(1.3rem, 2.2vw, 1.9rem);
+  color: #fff;
+  background: var(--survey-deep);
+  border: 2px solid #000;
+  border-radius: 4px;
+  min-width: 3.2rem;
+  text-align: center;
+  padding: 0.1rem 0.5rem;
+  text-shadow: 2px 2px 0 #000;
+}
+.feud-host-peek {
+  font-family: "Libre Baskerville", Georgia, serif;
+  font-style: italic;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+.feud-controls {
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px solid #000;
+  border-radius: 6px;
+}
+.feud-stage .uppercase:not(.font-jeopardy-display) {
+  letter-spacing: 0.02em;
+}
+@media (prefers-reduced-motion: reduce) {
+  .feud-slot-open { animation: none; }
+}
+.fast-money {
+  background: linear-gradient(180deg, #0d1d63, #071242);
+  border: 6px solid #c9d1dc;
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 3px #6b7686, 0 0 0 3px #000, 0 30px 80px rgba(0, 0, 0, 0.7);
+}

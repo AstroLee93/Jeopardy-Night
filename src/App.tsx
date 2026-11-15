@@ -1263,63 +1263,36 @@ export default function App() {
                 onOpenScoreEditor={() => setShowScoreEditorModal(true)}
               />
 
-              <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-center">
-                {role === 'host' && (
-                  <button
-                    type="button"
-                    onClick={() => setShowScoreEditorModal(true)}
-                    className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 font-semibold text-xs rounded-lg shadow flex items-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" /> Edit Scores & Badges
+              {role === 'host' && (
+                <div className="board-controls">
+                  <button type="button" onClick={() => setShowHostSheetModal(true)}>
+                    <ShieldCheck className="w-4 h-4" /> Answers
                   </button>
-                )}
-
-                {role === 'host' && (
+                  <button type="button" onClick={() => setShowScoreEditorModal(true)}>
+                    <Edit2 className="w-4 h-4" /> Edit teams
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
-                      if (window.confirm('Reset all team scores to $0 across all screens?')) {
-                        handleResetScores();
-                      }
+                      if (window.confirm('Set every team back to $0 on all screens?')) handleResetScores();
                     }}
-                    className="px-3 py-1.5 bg-red-950/80 hover:bg-red-900 text-red-200 border border-red-700 font-semibold text-xs rounded-lg shadow flex items-center gap-1.5 transition-colors cursor-pointer"
-                    title="Clear all scores to $0"
                   >
-                    <RotateCcw className="w-3.5 h-3.5" /> Clear Scores ($0)
+                    <RotateCcw className="w-4 h-4" /> Reset scores
                   </button>
-                )}
-
-                {role === 'host' && (
+                  {round === 1 && (
+                    <button type="button" onClick={handleGoToFinal}>
+                      <Trophy className="w-4 h-4" /> Skip to Final
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => setShowHostSheetModal(true)}
-                    className="px-4 py-2 bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-700 font-bold text-xs sm:text-sm rounded-lg shadow-md flex items-center gap-1.5 transition-transform hover:scale-105 cursor-pointer"
+                    className="board-next"
+                    onClick={round === 1 ? handleStartDoubleJeopardy : handleGoToFinal}
                   >
-                    <ShieldCheck className="w-4 h-4 text-emerald-400" /> View Host Answer Sheet
+                    {round === 1 ? 'Double Jeopardy!' : 'Final Jeopardy!'}
                   </button>
-                )}
-
-                {round === 1 && (
-                  <button
-                    type="button"
-                    onClick={handleStartDoubleJeopardy}
-                    className="px-4 py-2 bg-gradient-to-r from-[#0b15ff] to-[#060CE9] hover:from-[#2a33ff] hover:to-[#1a22ff] text-[#ffcc00] border-2 border-[#ffcc00] font-jeopardy-display uppercase tracking-wider text-sm sm:text-base rounded-lg shadow-md flex items-center gap-1.5 transition-transform hover:scale-105 cursor-pointer"
-                  >
-                    <Flame className="w-4 h-4" /> Double Jeopardy!
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={handleGoToFinal}
-                  className={`px-4 py-2 font-bold text-xs sm:text-sm rounded-lg shadow-md flex items-center gap-1.5 transition-transform hover:scale-105 cursor-pointer ${
-                    round === 2
-                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-[#030852]'
-                      : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700'
-                  }`}
-                >
-                  <Trophy className="w-4 h-4" /> {round === 1 ? 'Skip to Final' : 'Go to Final Jeopardy'}
-                </button>
-              </div>
+                </div>
+              )}
             </div>
           </div>
         )}

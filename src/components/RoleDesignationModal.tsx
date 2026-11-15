@@ -60,7 +60,7 @@ export const RoleDesignationModal: React.FC<RoleDesignationModalProps> = ({
         margin: 0,
       }}
     >
-      <div className="w-full max-w-3xl bg-gradient-to-b from-[#07116b] to-[#02052c] border-2 sm:border-4 border-[#ffcc00] rounded-2xl p-5 sm:p-8 shadow-2xl flex flex-col text-left">
+      <div className="w-full max-w-3xl host-panel p-5 sm:p-8 shadow-2xl flex flex-col text-left">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-700/80 pb-4 mb-5">
           <div className="flex items-center gap-3">

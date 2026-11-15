@@ -74,7 +74,7 @@ export const ScoreEditorModal: React.FC<ScoreEditorModalProps> = ({
         margin: 0,
       }}
     >
-      <div className="w-full max-w-2xl bg-gradient-to-b from-[#07116b] to-[#02052c] border-2 sm:border-4 border-[#ffcc00] rounded-2xl p-5 sm:p-7 shadow-2xl flex flex-col max-h-[92vh]">
+      <div className="w-full max-w-2xl host-panel p-5 sm:p-7 shadow-2xl flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-700/80 pb-3 mb-4">
           <div>
